@@ -65,6 +65,7 @@ podobě, stejně jako u desktopové verze). Webové rozhraní chraňte heslem
 |---|---|---|
 | `NEKNIHY_WEB_PORT` | `8478` | port webového rozhraní |
 | `NEKNIHY_WEB_PASSWORD` | – | heslo pro webové rozhraní (libovolné jméno) |
+| `NEKNIHY_LANG` | – | výchozí jazyk webu (`cs`, `sk`, `en`, `de`); jinak podle prohlížeče, záložně čeština |
 | `NEKNIHY_CONFIG_DIR` | `/config` | složka pro nastavení |
 | `NEKNIHY_EMAIL` | – | počáteční e-mail Palmknihy |
 | `NEKNIHY_PASSWORD` | – | počáteční heslo Palmknihy |
@@ -77,6 +78,12 @@ podobě, stejně jako u desktopové verze). Webové rozhraní chraňte heslem
 
 Hodnoty `NEKNIHY_EMAIL` … `NEKNIHY_AUTO_RETURN` slouží jen jako počáteční,
 dále platí to, co uložíte ve webovém rozhraní.
+
+Webové rozhraní je v češtině, slovenštině, angličtině a němčině. Jazyk se
+vybírá podle prohlížeče a dá se přepnout v záhlaví stránky. Překlady jsou
+v `src/neknihy/locales/*.json`; nový jazyk přidáte zkopírováním `en.json`
+pod kódem jazyka (např. `pl.json`) a přeložením hodnot. Chybějící texty se
+zobrazí anglicky. Kontrola překladů: `python3 -m unittest discover tests`.
 
 Jednorázově bez webu (např. z cronu):
 `NEKNIHY_EMAIL=... NEKNIHY_PASSWORD=... python3 src/neknihy_cli.py --once --workdir ~/knihy`

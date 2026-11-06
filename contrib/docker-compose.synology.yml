@@ -34,6 +34,7 @@ services:
     environment:
       TZ: "Europe/Bratislava"
       NEKNIHY_WEB_PASSWORD: "zmen-ma"   # ← heslo do webového rozhrania
+      # NEKNIHY_LANG: "sk"            # jazyk webu (cs, sk, en, de); inak podľa prehliadača
       # Voliteľné počiatočné hodnoty (dajú sa nastaviť aj vo webe):
       # NEKNIHY_EMAIL: "ty@example.com"
       # NEKNIHY_PASSWORD: "heslo-palmknihy"

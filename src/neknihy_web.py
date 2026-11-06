@@ -5,6 +5,9 @@
     NEKNIHY_WEB_PASSWORD  optional password for the web UI (HTTP basic auth,
                           any user name)
     NEKNIHY_CONFIG_DIR    folder for settings (default /config)
+    NEKNIHY_LANG          default UI language (cs, sk, en, de); otherwise
+                          taken from the browser, fallback cs. Each viewer
+                          can switch language in the page header (cookie).
 
 Settings entered in the UI are stored in NEKNIHY_CONFIG_DIR. On first start
 NEKNIHY_EMAIL / NEKNIHY_PASSWORD / NEKNIHY_WORKDIR / NEKNIHY_READERDIR /
@@ -25,8 +28,10 @@ import threading
 import time
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlparse
+from http.cookies import SimpleCookie
+from urllib.parse import parse_qs, quote, urlparse
 
+from neknihy import i18n
 from neknihy.app import App
 from neknihy_cli import env, run_once
 
@@ -37,13 +42,9 @@ CONF_FILE = os.path.join(CONFIG_DIR, "neknihy.conf")
 WEB_FILE = os.path.join(CONFIG_DIR, "web.json")
 PORT = int(env("NEKNIHY_WEB_PORT", "8478"))
 WEB_PASSWORD = env("NEKNIHY_WEB_PASSWORD")
-
-STATUS_LABELS = {
-    "new": "nová",
-    "pending": "čeká na zpřístupnění",
-    "ok": "stažená",
-    "expired": "prošlá",
-}
+DEFAULT_LANG = i18n.normalize(env("NEKNIHY_LANG"))
+FALLBACK_LANG = "cs"  # the app's original language
+STATUSES = ("new", "pending", "ok", "expired")
 
 
 class MemoryLog(logging.Handler):
@@ -63,7 +64,7 @@ class Service:
         self.stop = threading.Event()
         self.running = False
         self.last_run = None
-        self.last_result = ""
+        self.last_error = None  # None = OK, otherwise the error text
         self.next_run = None
         self.app = App(config=CONF_FILE)
         self.web = {"interval": 21600, "auto_return": True}
@@ -168,10 +169,10 @@ class Service:
                     log.warning("Sync folder not set or not found")
                 else:
                     log.info("Sync: added %d, removed %d", len(r["added"]), len(r["removed"]))
-            self.last_result = "OK"
+            self.last_error = None
         except Exception as e:
             log.error("%s failed: %s", name, e)
-            self.last_result = "chyba: %s" % e
+            self.last_error = str(e)
         finally:
             self.last_run = datetime.now()
             self.running = False
@@ -313,6 +314,16 @@ border-radius:8px;
 background:var(--bg);
 color:var(--fg);
 font:inherit}
+header .lang{
+display:flex;
+gap:6px;
+font-size:13px}
+header .lang a{
+text-decoration:none;
+color:var(--mut)}
+header .lang a.on{
+color:var(--fg);
+font-weight:600}
 .chk{
 display:flex;
 gap:8px;
@@ -331,82 +342,98 @@ def esc(v):
     return html.escape(str(v if v is not None else ""))
 
 
-def page(title, body):
-    return ("<!doctype html><html lang='cs'><head><meta charset='utf-8'>"
+def page(t, title, body, path="/"):
+    langs = "".join(
+        "<a href='/lang?l=%s&amp;next=%s' hreflang='%s' title='%s'%s>%s</a>"
+        % (code, quote(path), code, esc(name), " class='on'" if code == t.lang else "",
+           code.upper())
+        for code, name in i18n.available())
+    return ("<!doctype html><html lang='%s'><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width,initial-scale=1'>"
             "<title>%s</title><style>%s</style></head><body>"
-            "<header><h1>Neknihy</h1><nav><a href='/'>Výpůjčky</a>"
-            "<a href='/settings'>Nastavení</a></nav></header><main>%s</main></body></html>"
-            % (esc(title), CSS, body))
+            "<header><h1>Neknihy</h1><nav><a href='/'>%s</a>"
+            "<a href='/settings'>%s</a></nav><div class='lang' aria-label='%s'>%s</div>"
+            "</header><main>%s</main></body></html>"
+            % (t.lang, esc(title), CSS, esc(t("nav.loans")), esc(t("nav.settings")),
+               esc(t("nav.language")), langs, body))
 
 
-def fmt_date(value):
+def fmt_date(t, value):
     try:
-        return datetime.fromisoformat(value).strftime("%d.%m.%Y")
+        return datetime.fromisoformat(value).strftime(t("fmt.date"))
     except Exception:
         return esc(value)
 
 
-def render_index(svc):
+def render_index(svc, t):
     app = svc.app
     rows = []
     for b in app.books:
         st = b.get("neknihy", {}).get("status", "")
+        label = t("status." + st) if st in STATUSES else st
         rows.append(
             "<tr><td>%s<div class='mut'>%s</div></td><td class='hide-sm'>%s</td>"
             "<td class='st-%s'>%s</td><td class='hide-sm mut'>%s</td></tr>" % (
                 esc(b.get("title", b.get("palm_id"))), esc(app.bookAuthors(b)),
-                fmt_date(b.get("end_time", "")), esc(st), esc(STATUS_LABELS.get(st, st)),
+                fmt_date(t, b.get("end_time", "")), esc(st), esc(label),
                 esc(b.get("neknihy", {}).get("filename", ""))))
-    table = ("<table><tr><th>Kniha</th><th class='hide-sm'>Vrátit do</th><th>Stav</th>"
-             "<th class='hide-sm'>Soubor</th></tr>%s</table>" % "".join(rows)
-             if rows else "<p class='mut'>Žádné výpůjčky. Zkuste „Obnovit“.</p>")
+    table = ("<table><tr><th>%s</th><th class='hide-sm'>%s</th><th>%s</th>"
+             "<th class='hide-sm'>%s</th></tr>%s</table>" % (
+                 esc(t("th.book")), esc(t("th.due")), esc(t("th.status")),
+                 esc(t("th.file")), "".join(rows))
+             if rows else "<p class='mut'>%s</p>" % esc(t("empty")))
     status = []
     if not app.settings.configured():
-        status.append("<b>Není nastaveno</b> – vyplňte <a href='/settings'>nastavení</a>.")
+        link = "<a href='/settings'>%s</a>" % esc(t("settings_link"))
+        hint = esc(t("not_configured.hint", settings="\x00")).replace("\x00", link)
+        status.append("<b>%s</b> – %s" % (esc(t("not_configured")), hint))
     if svc.running:
-        status.append("Probíhá operace…")
+        status.append(esc(t("running")))
     if svc.last_run:
-        last = svc.last_run.strftime("%d.%m. %H:%M")
-        status.append("Poslední běh: %s (%s)" % (last, esc(svc.last_result)))
+        result = t("result.ok") if svc.last_error is None else t(
+            "result.error", error=svc.last_error)
+        status.append(esc(t("last_run", time=svc.last_run.strftime(t("fmt.datetime")),
+                            result=result)))
     if svc.next_run and svc.web["interval"] > 0:
-        status.append("Další běh: %s" % datetime.fromtimestamp(svc.next_run).strftime(
-            "%d.%m. %H:%M"))
+        status.append(esc(t("next_run", time=datetime.fromtimestamp(
+            svc.next_run).strftime(t("fmt.datetime")))))
     buttons = "".join(
         "<button name='a' value='%s'%s>%s</button>"
-        % (a, " class='primary'" if a == "run" else "", label)
-        for a, label in (("run", "Spustit vše"), ("refresh", "Obnovit"),
-                         ("download", "Stáhnout"), ("sync", "Synchronizovat"),
-                         ("return", "Smazat prošlé")))
+        % (a, " class='primary'" if a == "run" else "", esc(t("btn." + a)))
+        for a in ("run", "refresh", "download", "sync", "return"))
     body = ("<div class='card'><form method='post' action='/action' class='actions'>%s</form>"
             "<p class='mut'>%s</p></div><div class='card'>%s</div>"
             "<div class='card'><pre>%s</pre></div>" % (
                 buttons, "<br>".join(status), table,
                 esc("\n".join(reversed(svc.log.lines)))))
-    return page("Neknihy", body)
+    return page(t, "Neknihy", body, "/")
 
 
-def render_settings(svc):
+def render_settings(svc, t):
     s = svc.app.settings
     body = """<div class='card'><form method='post' action='/settings'>
-<label>E-mail (Palmknihy)</label><input type='email' name='email' value='%s' required>
-<label>Heslo %s</label><input type='password' name='password' autocomplete='new-password'>
-<label>Složka pro knihy (v kontejneru)</label><input type='text' name='workdir' value='%s'>
-<label>Složka pro synchronizaci (čtečka, ingest Calibre-Web; prázdné = vypnuto)</label>
+<label>%s</label><input type='email' name='email' value='%s' required>
+<label>%s %s</label><input type='password' name='password' autocomplete='new-password'>
+<label>%s</label><input type='text' name='workdir' value='%s'>
+<label>%s</label>
 <input type='text' name='readerdir' value='%s'>
-<label>Interval automatického běhu (hodiny, 0 = vypnuto)</label>
+<label>%s</label>
 <input type='number' min='0' name='interval_h' value='%d'>
 <div class='chk'><input type='checkbox' name='auto_return' id='ar'%s>
-<label for='ar' style='margin:0'>Automaticky mazat prošlé výpůjčky</label></div>
+<label for='ar' style='margin:0'>%s</label></div>
 <div class='chk'><input type='checkbox' name='convert' id='cv'%s>
-<label for='cv' style='margin:0'>Převádět na .mobi (vyžaduje Calibre)</label></div>
-<label>Cesta k ebook-convert</label><input type='text' name='convertor' value='%s'>
-<p><button class='primary'>Uložit</button></p></form></div>""" % (
-        esc(s.email), "(ponechte prázdné pro zachování)" if s.password else "",
-        esc(s.workdir), esc(s.readerdir), svc.web["interval"] // 3600,
-        " checked" if svc.web["auto_return"] else "",
-        " checked" if s.convert == "1" else "", esc(s.convertor))
-    return page("Nastavení – Neknihy", body)
+<label for='cv' style='margin:0'>%s</label></div>
+<label>%s</label><input type='text' name='convertor' value='%s'>
+<p><button class='primary'>%s</button></p></form></div>""" % (
+        esc(t("set.email")), esc(s.email),
+        esc(t("set.password")), esc(t("set.password_keep")) if s.password else "",
+        esc(t("set.workdir")), esc(s.workdir),
+        esc(t("set.readerdir")), esc(s.readerdir),
+        esc(t("set.interval")), svc.web["interval"] // 3600,
+        " checked" if svc.web["auto_return"] else "", esc(t("set.auto_return")),
+        " checked" if s.convert == "1" else "", esc(t("set.convert")),
+        esc(t("set.convertor")), esc(s.convertor), esc(t("set.save")))
+    return page(t, "%s – Neknihy" % t("title.settings"), body, "/settings")
 
 
 def make_handler(svc):
@@ -447,30 +474,62 @@ def make_handler(svc):
             self.end_headers()
             self.wfile.write(data)
 
-        def _redirect(self, to):
+        def _redirect(self, to, cookie=None):
             self.send_response(303)
             self.send_header("Location", to)
+            if cookie:
+                self.send_header("Set-Cookie", cookie)
             self.end_headers()
 
+        def _translator(self):
+            lang = None
+            raw = self.headers.get("Cookie")
+            if raw:
+                try:
+                    c = SimpleCookie(raw)
+                    if "neknihy_lang" in c:
+                        lang = i18n.normalize(c["neknihy_lang"].value)
+                except Exception:
+                    pass
+            lang = (lang or DEFAULT_LANG
+                    or i18n.from_accept_language(self.headers.get("Accept-Language"))
+                    or FALLBACK_LANG)
+            return i18n.Translator(lang)
+
+        def _error(self, t, code, key):
+            self._send(page(t, str(code), "<p>%s</p>" % esc(t(key))), code)
+
         def do_GET(self):
-            path = urlparse(self.path).path
+            url = urlparse(self.path)
+            path = url.path
             if path == "/health":
                 self._send("ok")
                 return
             if not self._authorized():
                 return
+            t = self._translator()
             if path == "/":
-                self._send(render_index(svc))
+                self._send(render_index(svc, t))
             elif path == "/settings":
-                self._send(render_settings(svc))
+                self._send(render_settings(svc, t))
+            elif path == "/lang":
+                q = parse_qs(url.query)
+                lang = i18n.normalize(q.get("l", [""])[0])
+                nxt = q.get("next", ["/"])[0]
+                if nxt not in ("/", "/settings"):
+                    nxt = "/"  # no open redirects
+                cookie = ("neknihy_lang=%s; Path=/; Max-Age=31536000; SameSite=Lax" % lang
+                          if lang else None)
+                self._redirect(nxt, cookie)
             else:
-                self._send(page("404", "<p>Nenalezeno</p>"), 404)
+                self._error(t, 404, "err.not_found")
 
         def do_POST(self):
             if not self._authorized():
                 return
+            t = self._translator()
             if not self._same_origin():
-                self._send(page("403", "<p>Zakázáno</p>"), 403)
+                self._error(t, 403, "err.forbidden")
                 return
             length = min(int(self.headers.get("Content-Length", 0) or 0), 65536)
             form = {k: v[0] for k, v in parse_qs(self.rfile.read(length).decode()).items()}
@@ -485,7 +544,7 @@ def make_handler(svc):
                     time.sleep(0.3)
                 self._redirect("/")
             else:
-                self._send(page("404", "<p>Nenalezeno</p>"), 404)
+                self._error(t, 404, "err.not_found")
 
     return Handler
 
