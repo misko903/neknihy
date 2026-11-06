@@ -9,10 +9,11 @@
 services:
   neknihy:
     # Zostaví obraz priamo z GitHubu (netreba sťahovať zdrojáky).
-    # Po zlúčení PR do main môžeš namiesto "build:" použiť hotový obraz:
+    # Po zlúčení PR do main môžeš riadky "build:" a "pull_policy:" nahradiť
+    # hotovým obrazom:
     #   image: ghcr.io/misko903/neknihy:latest
     build: https://github.com/misko903/neknihy.git#headless-docker
-    image: neknihy:local
+    pull_policy: build            # obraz sa zostaví, nesťahuje z registra
     container_name: neknihy
     restart: unless-stopped
     user: "1026:100"              # ← tvoje UID:GID
