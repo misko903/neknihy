@@ -1,0 +1,5 @@
+.git
+.github
+contrib
+**/__pycache__
+books

@@ -46,6 +46,30 @@ nainstalujte aplikaci ze zdrojových kódů.
 
 MacOS build je momentálně nedostupný. Instalujte pomocí homebrew (viz níže).
 
+## Headless / Docker
+
+Neknihy lze spustit i bez GUI, například v Dockeru na NAS. Kontejner
+v pravidelném intervalu načte výpůjčky, stáhne nové knihy, smaže
+soubory prošlých výpůjček a volitelně synchronizuje knihy do další
+složky (čtečka, ingest složka Calibre-Web apod.).
+
+    docker compose up -d
+
+Nastavení je přes proměnné prostředí (viz `docker-compose.yml`):
+
+| Proměnná | Výchozí | Popis |
+|---|---|---|
+| `NEKNIHY_EMAIL` | – | přihlašovací e-mail Palmknihy (povinné) |
+| `NEKNIHY_PASSWORD` | – | heslo (povinné) |
+| `NEKNIHY_WORKDIR` | `/books` | složka pro stažené knihy |
+| `NEKNIHY_READERDIR` | – | volitelná složka pro synchronizaci |
+| `NEKNIHY_INTERVAL` | `21600` | interval v sekundách, `0` = jednorázově |
+| `NEKNIHY_AUTO_RETURN` | `1` | mazat soubory prošlých výpůjček |
+| `NEKNIHY_CONVERT` | `0` | převod na .mobi (vyžaduje Calibre, v obrazu není) |
+| `NEKNIHY_DEBUG` | `0` | výpis HTTP komunikace |
+
+Bez Dockeru: `NEKNIHY_EMAIL=... NEKNIHY_PASSWORD=... python3 src/neknihy_cli.py --once --workdir ~/knihy`
+
 ## Screenshot
 
 ![mainwindow](contrib/screenshot.png "Screenshot")

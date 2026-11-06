@@ -1,0 +1,18 @@
+services:
+  neknihy:
+    build: .
+    # image: ghcr.io/misko903/neknihy:latest  # alebo použi hotový obraz z GHCR
+    container_name: neknihy
+    restart: unless-stopped
+    # Synology: use your user's UID:GID (e.g. "1026:100")
+    user: "1000:1000"
+    environment:
+      NEKNIHY_EMAIL: "you@example.com"
+      NEKNIHY_PASSWORD: "secret"
+      NEKNIHY_INTERVAL: "21600"      # seconds, 0 = run once
+      NEKNIHY_AUTO_RETURN: "1"       # delete files of expired loans
+      # NEKNIHY_READERDIR: "/reader" # optional second folder to sync into
+      TZ: "Europe/Bratislava"
+    volumes:
+      - ./books:/books
+      # - /volume1/calibre-web/ingest:/reader
