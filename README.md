@@ -48,27 +48,38 @@ MacOS build je momentálně nedostupný. Instalujte pomocí homebrew (viz níže
 
 ## Headless / Docker
 
-Neknihy lze spustit i bez GUI, například v Dockeru na NAS. Kontejner
-v pravidelném intervalu načte výpůjčky, stáhne nové knihy, smaže
-soubory prošlých výpůjček a volitelně synchronizuje knihy do další
-složky (čtečka, ingest složka Calibre-Web apod.).
+Neknihy lze spustit i bez desktopového GUI, například v Dockeru na NAS.
+Kontejner obsahuje jednoduché webové rozhraní (výchozí port `8478`), kde
+zadáte přihlašovací údaje, vidíte výpůjčky a můžete ručně spustit
+obnovení, stažení, synchronizaci nebo smazání prošlých výpůjček.
+V nastaveném intervalu (výchozí 6 h) běží vše automaticky.
 
     docker compose up -d
+    # http://<nas>:8478
 
-Nastavení je přes proměnné prostředí (viz `docker-compose.yml`):
+Nastavení z webu se ukládá do `/config` (heslo k Palmknihy v čitelné
+podobě, stejně jako u desktopové verze). Webové rozhraní chraňte heslem
+(`NEKNIHY_WEB_PASSWORD`) a nevystavujte ho do internetu.
 
 | Proměnná | Výchozí | Popis |
 |---|---|---|
-| `NEKNIHY_EMAIL` | – | přihlašovací e-mail Palmknihy (povinné) |
-| `NEKNIHY_PASSWORD` | – | heslo (povinné) |
+| `NEKNIHY_WEB_PORT` | `8478` | port webového rozhraní |
+| `NEKNIHY_WEB_PASSWORD` | – | heslo pro webové rozhraní (libovolné jméno) |
+| `NEKNIHY_CONFIG_DIR` | `/config` | složka pro nastavení |
+| `NEKNIHY_EMAIL` | – | počáteční e-mail Palmknihy |
+| `NEKNIHY_PASSWORD` | – | počáteční heslo Palmknihy |
 | `NEKNIHY_WORKDIR` | `/books` | složka pro stažené knihy |
 | `NEKNIHY_READERDIR` | – | volitelná složka pro synchronizaci |
-| `NEKNIHY_INTERVAL` | `21600` | interval v sekundách, `0` = jednorázově |
+| `NEKNIHY_INTERVAL` | `21600` | počáteční interval v sekundách, `0` = vypnuto |
 | `NEKNIHY_AUTO_RETURN` | `1` | mazat soubory prošlých výpůjček |
 | `NEKNIHY_CONVERT` | `0` | převod na .mobi (vyžaduje Calibre, v obrazu není) |
 | `NEKNIHY_DEBUG` | `0` | výpis HTTP komunikace |
 
-Bez Dockeru: `NEKNIHY_EMAIL=... NEKNIHY_PASSWORD=... python3 src/neknihy_cli.py --once --workdir ~/knihy`
+Hodnoty `NEKNIHY_EMAIL` … `NEKNIHY_AUTO_RETURN` slouží jen jako počáteční,
+dále platí to, co uložíte ve webovém rozhraní.
+
+Jednorázově bez webu (např. z cronu):
+`NEKNIHY_EMAIL=... NEKNIHY_PASSWORD=... python3 src/neknihy_cli.py --once --workdir ~/knihy`
 
 ## Screenshot
 

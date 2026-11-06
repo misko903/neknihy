@@ -6,13 +6,16 @@ services:
     restart: unless-stopped
     # Synology: use your user's UID:GID (e.g. "1026:100")
     user: "1000:1000"
+    ports:
+      - "8478:8478"   # web UI, change the left side if the port is taken
     environment:
-      NEKNIHY_EMAIL: "you@example.com"
-      NEKNIHY_PASSWORD: "secret"
-      NEKNIHY_INTERVAL: "21600"      # seconds, 0 = run once
-      NEKNIHY_AUTO_RETURN: "1"       # delete files of expired loans
-      # NEKNIHY_READERDIR: "/reader" # optional second folder to sync into
+      NEKNIHY_WEB_PASSWORD: "change-me"  # protects the web UI; empty = no password
       TZ: "Europe/Bratislava"
+      # Optional initial values (can be set later in the web UI):
+      # NEKNIHY_EMAIL: "you@example.com"
+      # NEKNIHY_PASSWORD: "secret"
+      # NEKNIHY_READERDIR: "/reader"
     volumes:
+      - ./config:/config
       - ./books:/books
       # - /volume1/calibre-web/ingest:/reader

@@ -60,7 +60,9 @@ def build_app(args):
     return app
 
 
-def run_once(app):
+def run_once(app, auto_return=None):
+    if auto_return is None:
+        auto_return = env("NEKNIHY_AUTO_RETURN", "1") == "1"
     log.info("Refreshing list of rented books")
     app.refreshRents()
     active = [b for b in app.books if b["neknihy"]["status"] != "expired"]
@@ -79,7 +81,7 @@ def run_once(app):
         elif status == "ok":
             log.info("  ok: %s", b["neknihy"]["filename"])
 
-    if env("NEKNIHY_AUTO_RETURN", "1") == "1":
+    if auto_return:
         expired = [b["neknihy"]["filename"] for b in app.books
                    if b["neknihy"]["status"] == "expired"]
         if expired:
