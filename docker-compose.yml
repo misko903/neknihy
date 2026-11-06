@@ -1,0 +1,35 @@
+# Neknihy – web UI + automatické sťahovanie výpožičiek Palmknihy
+#
+# Synology (Container Manager → Projekt → Vytvoriť):
+#   1. Vytvor priečinky /volume1/docker/neknihy/config a /volume1/docker/neknihy/books
+#   2. Zisti svoje UID:GID (SSH: `id`), napr. uid=1026 gid=100 → user: "1026:100"
+#   3. Vlož tento súbor, uprav hodnoty označené ← a spusti
+#   4. Otvor http://<IP-NAS>:8478 → Nastavení → zadaj e-mail a heslo Palmknihy
+
+services:
+  neknihy:
+    # Zostaví obraz priamo z GitHubu (netreba sťahovať zdrojáky).
+    # Po zlúčení PR do main môžeš riadky "build:" a "pull_policy:" nahradiť
+    # hotovým obrazom:
+    #   image: ghcr.io/misko903/neknihy:latest
+    build: https://github.com/misko903/neknihy.git#headless-docker
+    pull_policy: build            # obraz sa zostaví, nesťahuje z registra
+    container_name: neknihy
+    restart: unless-stopped
+    user: "1026:100"              # ← tvoje UID:GID
+    ports:
+      - "8478:8478"               # ← ľavé číslo zmeň, ak je port obsadený
+    environment:
+      TZ: "Europe/Bratislava"
+      NEKNIHY_WEB_PASSWORD: "zmen-ma"   # ← heslo do webového rozhrania
+      # NEKNIHY_LANG: "sk"            # jazyk webu (cs, sk, en, de); inak podľa prehliadača
+      # Voliteľné počiatočné hodnoty (dajú sa nastaviť aj vo webe):
+      # NEKNIHY_EMAIL: "ty@example.com"
+      # NEKNIHY_PASSWORD: "heslo-palmknihy"
+      # NEKNIHY_READERDIR: "/reader"
+    volumes:
+      - /volume1/docker/neknihy/config:/config   # nastavenia
+      - /volume1/docker/neknihy/books:/books     # stiahnuté knihy
+      # Synchronizácia priamo do ingest priečinka Calibre-Web
+      # (vo webe potom nastav "Složka pro synchronizaci" na /reader):
+      # - /volume1/docker/calibre-web/ingest:/reader
