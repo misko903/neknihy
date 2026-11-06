@@ -39,5 +39,6 @@
   "set.convertor": "Path to ebook-convert",
   "set.save": "Save",
   "err.not_found": "Not found",
-  "err.forbidden": "Forbidden"
+  "err.forbidden": "Forbidden",
+  "log.title": "Log"
 }

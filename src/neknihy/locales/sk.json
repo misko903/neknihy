@@ -39,5 +39,6 @@
   "set.convertor": "Cesta k ebook-convert",
   "set.save": "Uložiť",
   "err.not_found": "Nenájdené",
-  "err.forbidden": "Zakázané"
+  "err.forbidden": "Zakázané",
+  "log.title": "Záznam"
 }

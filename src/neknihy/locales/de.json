@@ -39,5 +39,6 @@
   "set.convertor": "Pfad zu ebook-convert",
   "set.save": "Speichern",
   "err.not_found": "Nicht gefunden",
-  "err.forbidden": "Verboten"
+  "err.forbidden": "Verboten",
+  "log.title": "Protokoll"
 }

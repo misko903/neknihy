@@ -205,6 +205,45 @@ class Service:
 
 # --- HTML -----------------------------------------------------------------
 
+# Inline SVG icons (24x24, stroke = currentColor, so they follow the theme
+# and the white text of primary buttons).
+_ICON_PATHS = {
+    "run": "<polygon points='6 4 20 12 6 20 6 4'/>",
+    "refresh": "<path d='M21 12a9 9 0 1 1-2.64-6.36L21 8'/><path d='M21 3v5h-5'/>",
+    "download": "<path d='M12 3v12'/><path d='m7 10 5 5 5-5'/><path d='M5 21h14'/>",
+    "sync": "<rect x='5' y='2' width='14' height='20' rx='2'/><path d='M9 10l3 3 3-3'/>"
+            "<path d='M12 6v7'/><path d='M10 18h4'/>",
+    "return": "<path d='M9 14 4 9l5-5'/><path d='M4 9h10.5a5.5 5.5 0 0 1 0 11H11'/>",
+    "loans": "<path d='M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z'/>"
+             "<path d='M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z'/>",
+    "settings": "<path d='M4 6h10'/><path d='M18 6h2'/><circle cx='16' cy='6' r='2'/>"
+                "<path d='M4 12h4'/><path d='M12 12h8'/><circle cx='10' cy='12' r='2'/>"
+                "<path d='M4 18h12'/><path d='M20 18h0'/><circle cx='18' cy='18' r='2'/>",
+    "lang": "<circle cx='12' cy='12' r='9'/><path d='M3 12h18'/>"
+            "<path d='M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18'/>",
+    "new": "<path d='M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z'/>",
+    "pending": "<circle cx='12' cy='12' r='9'/><path d='M12 7v5l3 2'/>",
+    "ok": "<circle cx='12' cy='12' r='9'/><path d='m8 12 3 3 5-6'/>",
+    "expired": "<circle cx='12' cy='12' r='9'/><path d='m9 9 6 6'/><path d='m15 9-6 6'/>",
+    "info": "<circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><path d='M12 8h0'/>",
+    "warn": "<path d='M12 3 2 20h20z'/><path d='M12 10v4'/><path d='M12 17h0'/>",
+    "log": "<path d='M4 6h16'/><path d='M4 12h16'/><path d='M4 18h10'/>",
+    "empty": "<path d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z'/>"
+             "<path d='M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5'/>",
+}
+
+
+def icon(name, cls="ic"):
+    return ("<svg class='%s' viewBox='0 0 24 24' fill='none' stroke='currentColor' "
+            "stroke-width='2' stroke-linecap='round' stroke-linejoin='round' "
+            "aria-hidden='true'>%s</svg>" % (cls, _ICON_PATHS.get(name, "")))
+
+
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(i18n.__file__)), "static")
+STATIC = {"/favicon.ico": "icon-32.png", "/favicon.png": "icon-32.png",
+          "/icon.png": "icon-64.png", "/apple-touch-icon.png": "icon-180.png"}
+
+
 CSS = """
 :root{
 --bg:#f6f5f2;
@@ -335,6 +374,52 @@ font-size:15px}
 .hide-sm{
 display:none}
 }
+.ic{
+width:1.1em;
+height:1.1em;
+flex:none;
+vertical-align:-0.18em}
+header h1{
+display:flex;
+align-items:center;
+gap:8px}
+header h1 img{
+width:28px;
+height:28px}
+header nav a,button,.st,h2{
+display:inline-flex;
+align-items:center;
+gap:6px}
+header nav a{
+text-decoration:none}
+h2{
+font-size:14px;
+font-weight:500;
+color:var(--mut);
+margin:0 0 8px}
+.empty{
+text-align:center;
+padding:24px 0}
+.empty .ic{
+width:40px;
+height:40px;
+display:block;
+margin:0 auto 8px}
+.st-new{
+color:var(--fg)}
+@media (max-width:600px){
+header{
+flex-wrap:wrap;
+gap:8px 14px}
+header nav{
+order:3;
+margin-left:0;
+width:100%}
+header .lang{
+margin-left:auto}
+.actions button span{
+display:none}
+}
 """
 
 
@@ -350,12 +435,14 @@ def page(t, title, body, path="/"):
         for code, name in i18n.available())
     return ("<!doctype html><html lang='%s'><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-            "<title>%s</title><style>%s</style></head><body>"
-            "<header><h1>Neknihy</h1><nav><a href='/'>%s</a>"
-            "<a href='/settings'>%s</a></nav><div class='lang' aria-label='%s'>%s</div>"
+            "<title>%s</title><link rel='icon' type='image/png' href='/favicon.png'>"
+            "<link rel='apple-touch-icon' href='/apple-touch-icon.png'>"
+            "<style>%s</style></head><body>"
+            "<header><h1><img src='/icon.png' alt=''>Neknihy</h1><nav><a href='/'>%s%s</a>"
+            "<a href='/settings'>%s%s</a></nav><div class='lang' aria-label='%s'>%s%s</div>"
             "</header><main>%s</main></body></html>"
-            % (t.lang, esc(title), CSS, esc(t("nav.loans")), esc(t("nav.settings")),
-               esc(t("nav.language")), langs, body))
+            % (t.lang, esc(title), CSS, icon("loans"), esc(t("nav.loans")), icon("settings"),
+               esc(t("nav.settings")), esc(t("nav.language")), icon("lang"), langs, body))
 
 
 def fmt_date(t, value):
@@ -373,20 +460,22 @@ def render_index(svc, t):
         label = t("status." + st) if st in STATUSES else st
         rows.append(
             "<tr><td>%s<div class='mut'>%s</div></td><td class='hide-sm'>%s</td>"
-            "<td class='st-%s'>%s</td><td class='hide-sm mut'>%s</td></tr>" % (
+            "<td><span class='st st-%s'>%s%s</span></td><td class='hide-sm mut'>%s</td></tr>" % (
                 esc(b.get("title", b.get("palm_id"))), esc(app.bookAuthors(b)),
-                fmt_date(t, b.get("end_time", "")), esc(st), esc(label),
+                fmt_date(t, b.get("end_time", "")), esc(st),
+                icon(st) if st in STATUSES else "", esc(label),
                 esc(b.get("neknihy", {}).get("filename", ""))))
     table = ("<table><tr><th>%s</th><th class='hide-sm'>%s</th><th>%s</th>"
              "<th class='hide-sm'>%s</th></tr>%s</table>" % (
                  esc(t("th.book")), esc(t("th.due")), esc(t("th.status")),
                  esc(t("th.file")), "".join(rows))
-             if rows else "<p class='mut'>%s</p>" % esc(t("empty")))
+             if rows else "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("empty"))))
     status = []
     if not app.settings.configured():
         link = "<a href='/settings'>%s</a>" % esc(t("settings_link"))
         hint = esc(t("not_configured.hint", settings="\x00")).replace("\x00", link)
-        status.append("<b>%s</b> – %s" % (esc(t("not_configured")), hint))
+        status.append("<span class='st st-pending'>%s<b>%s</b></span> – %s" % (
+            icon("warn"), esc(t("not_configured")), hint))
     if svc.running:
         status.append(esc(t("running")))
     if svc.last_run:
@@ -398,13 +487,14 @@ def render_index(svc, t):
         status.append(esc(t("next_run", time=datetime.fromtimestamp(
             svc.next_run).strftime(t("fmt.datetime")))))
     buttons = "".join(
-        "<button name='a' value='%s'%s>%s</button>"
-        % (a, " class='primary'" if a == "run" else "", esc(t("btn." + a)))
+        "<button name='a' value='%s'%s title='%s'>%s<span>%s</span></button>"
+        % (a, " class='primary'" if a == "run" else "", esc(t("btn." + a)), icon(a),
+           esc(t("btn." + a)))
         for a in ("run", "refresh", "download", "sync", "return"))
     body = ("<div class='card'><form method='post' action='/action' class='actions'>%s</form>"
             "<p class='mut'>%s</p></div><div class='card'>%s</div>"
-            "<div class='card'><pre>%s</pre></div>" % (
-                buttons, "<br>".join(status), table,
+            "<div class='card'><h2>%s%s</h2><pre>%s</pre></div>" % (
+                buttons, "<br>".join(status), table, icon("log"), esc(t("log.title")),
                 esc("\n".join(reversed(svc.log.lines)))))
     return page(t, "Neknihy", body, "/")
 
@@ -424,7 +514,7 @@ def render_settings(svc, t):
 <div class='chk'><input type='checkbox' name='convert' id='cv'%s>
 <label for='cv' style='margin:0'>%s</label></div>
 <label>%s</label><input type='text' name='convertor' value='%s'>
-<p><button class='primary'>%s</button></p></form></div>""" % (
+<p><button class='primary'>%s%s</button></p></form></div>""" % (
         esc(t("set.email")), esc(s.email),
         esc(t("set.password")), esc(t("set.password_keep")) if s.password else "",
         esc(t("set.workdir")), esc(s.workdir),
@@ -432,7 +522,7 @@ def render_settings(svc, t):
         esc(t("set.interval")), svc.web["interval"] // 3600,
         " checked" if svc.web["auto_return"] else "", esc(t("set.auto_return")),
         " checked" if s.convert == "1" else "", esc(t("set.convert")),
-        esc(t("set.convertor")), esc(s.convertor), esc(t("set.save")))
+        esc(t("set.convertor")), esc(s.convertor), icon("ok"), esc(t("set.save")))
     return page(t, "%s – Neknihy" % t("title.settings"), body, "/settings")
 
 
@@ -474,6 +564,21 @@ def make_handler(svc):
             self.end_headers()
             self.wfile.write(data)
 
+        def _send_static(self, name):
+            try:
+                with open(os.path.join(STATIC_DIR, name), "rb") as f:
+                    data = f.read()
+            except OSError:
+                self.send_response(404)
+                self.end_headers()
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "public, max-age=604800")
+            self.end_headers()
+            self.wfile.write(data)
+
         def _redirect(self, to, cookie=None):
             self.send_response(303)
             self.send_header("Location", to)
@@ -504,6 +609,9 @@ def make_handler(svc):
             path = url.path
             if path == "/health":
                 self._send("ok")
+                return
+            if path in STATIC:
+                self._send_static(STATIC[path])
                 return
             if not self._authorized():
                 return
