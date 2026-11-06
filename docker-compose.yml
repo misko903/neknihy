@@ -1,21 +1,30 @@
+# Neknihy – web UI + automatické sťahovanie výpožičiek Palmknihy
+#
+# Synology (Container Manager → Projekt → Vytvoriť):
+#   1. Vytvor priečinky /volume1/docker/neknihy/config a /volume1/docker/neknihy/books
+#   2. Zisti svoje UID:GID (SSH: `id`), napr. uid=1026 gid=100 → user: "1026:100"
+#   3. Vlož tento súbor, uprav hodnoty označené ← a spusti
+#   4. Otvor http://<IP-NAS>:8478 → Nastavení → zadaj e-mail a heslo Palmknihy
+
 services:
   neknihy:
-    build: .
-    # image: ghcr.io/misko903/neknihy:latest  # alebo použi hotový obraz z GHCR
+    image: ghcr.io/misko903/neknihy:latest
+    build: .                      # použije sa len pri lokálnom builde z repa
     container_name: neknihy
     restart: unless-stopped
-    # Synology: use your user's UID:GID (e.g. "1026:100")
-    user: "1000:1000"
+    user: "1026:100"              # ← tvoje UID:GID
     ports:
-      - "8478:8478"   # web UI, change the left side if the port is taken
+      - "8478:8478"               # ← ľavé číslo zmeň, ak je port obsadený
     environment:
-      NEKNIHY_WEB_PASSWORD: "change-me"  # protects the web UI; empty = no password
       TZ: "Europe/Bratislava"
-      # Optional initial values (can be set later in the web UI):
-      # NEKNIHY_EMAIL: "you@example.com"
-      # NEKNIHY_PASSWORD: "secret"
+      NEKNIHY_WEB_PASSWORD: "zmen-ma"   # ← heslo do webového rozhrania
+      # Voliteľné počiatočné hodnoty (dajú sa nastaviť aj vo webe):
+      # NEKNIHY_EMAIL: "ty@example.com"
+      # NEKNIHY_PASSWORD: "heslo-palmknihy"
       # NEKNIHY_READERDIR: "/reader"
     volumes:
-      - ./config:/config
-      - ./books:/books
-      # - /volume1/calibre-web/ingest:/reader
+      - /volume1/docker/neknihy/config:/config   # nastavenia
+      - /volume1/docker/neknihy/books:/books     # stiahnuté knihy
+      # Synchronizácia priamo do ingest priečinka Calibre-Web
+      # (vo webe potom nastav "Složka pro synchronizaci" na /reader):
+      # - /volume1/docker/calibre-web/ingest:/reader
