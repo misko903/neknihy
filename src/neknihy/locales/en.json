@@ -40,5 +40,6 @@
   "set.save": "Save",
   "err.not_found": "Not found",
   "err.forbidden": "Forbidden",
-  "log.title": "Log"
+  "log.title": "Log",
+  "set.ingest": "Sync folder is a Calibre-Web ingest folder (copy each book only once)"
 }

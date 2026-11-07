@@ -40,5 +40,6 @@
   "set.save": "Uložit",
   "err.not_found": "Nenalezeno",
   "err.forbidden": "Zakázáno",
-  "log.title": "Záznam"
+  "log.title": "Záznam",
+  "set.ingest": "Složka pro synchronizaci je ingest složka Calibre-Web (každou knihu zkopírovat jen jednou)"
 }

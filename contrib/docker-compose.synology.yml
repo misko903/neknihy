@@ -28,22 +28,24 @@ services:
     pull_policy: build
     container_name: neknihy
     restart: unless-stopped
-    user: "1026:100"              # ← tvoje UID:GID
+    user: "1037:100"              # dockeruser:users – rovnaký ako CW NG (prístup do ingestu)
     ports:
       - "8478:8478"               # ← ľavé číslo zmeň, ak je port obsadený
     environment:
       TZ: "Europe/Bratislava"
       NEKNIHY_WEB_PASSWORD: "zmen-ma"   # ← heslo do webového rozhrania
       # NEKNIHY_LANG: "sk"            # jazyk webu (cs, sk, en, de); inak podľa prehliadača
+      # Nové knihy sa skopírujú (raz) do ingest priečinka CW NG,
+      # ktorý ich naimportuje do knižnice:
+      NEKNIHY_READERDIR: "/reader"
+      NEKNIHY_INGEST: "1"
       # Voliteľné počiatočné hodnoty (dajú sa nastaviť aj vo webe):
       # NEKNIHY_EMAIL: "ty@example.com"
       # NEKNIHY_PASSWORD: "heslo-palmknihy"
     volumes:
       - /volume1/docker/neknihy/config:/config   # nastavenia
       - /volume1/docker/neknihy/books:/books     # stiahnuté knihy
-      # Synchronizácia priamo do ingest priečinka Calibre-Web
-      # (vo webe potom nastav "Složka pro synchronizaci" na /reader):
-      # - /volume1/docker/calibre-web/ingest:/reader
+      - /volume1/docker/autocalibreweb/ingest:/reader   # ingest priečinok CW NG
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8478/health')"]
       interval: 60s

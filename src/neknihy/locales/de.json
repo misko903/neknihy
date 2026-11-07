@@ -40,5 +40,6 @@
   "set.save": "Speichern",
   "err.not_found": "Nicht gefunden",
   "err.forbidden": "Verboten",
-  "log.title": "Protokoll"
+  "log.title": "Protokoll",
+  "set.ingest": "Sync-Ordner ist ein Calibre-Web-Ingest-Ordner (jedes Buch nur einmal kopieren)"
 }

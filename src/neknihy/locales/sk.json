@@ -40,5 +40,6 @@
   "set.save": "Uložiť",
   "err.not_found": "Nenájdené",
   "err.forbidden": "Zakázané",
-  "log.title": "Záznam"
+  "log.title": "Záznam",
+  "set.ingest": "Priečinok na synchronizáciu je ingest priečinok Calibre-Web (každú knihu skopírovať iba raz)"
 }
