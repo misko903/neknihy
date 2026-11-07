@@ -168,6 +168,19 @@ RESULT = """
 """
 
 
+AUDIO_RESULT = """
+<div data-work-id="1452934" class="result harvested">
+  <div class="showitems"><div class="Title"><span class="showitem-content">Postřelená
+  (audio)kniha</span></div></div>
+  <span class="work-type" data-original-title="audioknihy - "></span>
+  <div class="work-availability btn-group" data-original-title="Dostupné v databázi: Palmknihy">
+    <ul><li><a href="https://www.palmknihy.cz/kniha/401100">kniha</a></li></ul>
+  </div>
+  <a class="btn" href="/library/vkmr/eborrow/1452934?search=x&amp;si=1">Požičať</a>
+</div>
+"""
+
+
 class Search(unittest.TestCase):
     def test_parse(self):
         data = katalog.parse_search(RESULT)
@@ -209,6 +222,42 @@ class Search(unittest.TestCase):
         data = katalog.search("poirot", library="other", session=s)
         self.assertEqual(s.get.call_args[1]["params"]["area"], -1)
         self.assertEqual([r["work_id"] for r in data["results"]], [1481396])
+
+    def test_total_with_thousands_separator(self):
+        html = RESULT.replace("z celkom 2.", "z celkom 1 800.")
+        self.assertEqual(katalog.parse_search(html)["total"], 1800)
+        html = RESULT.replace("z celkom 2.", "z celkom 12 345.")
+        self.assertEqual(katalog.parse_search(html)["total"], 12345)
+
+    def test_parse_audiobook(self):
+        html = AUDIO_RESULT
+        (r,) = katalog.parse_search(html)["results"]
+        self.assertTrue(r["ebook"])
+        self.assertTrue(r["audiobook"])
+        self.assertEqual(r["palm_id"], 401100)
+        first, second = katalog.parse_search(RESULT)["results"]
+        self.assertFalse(first["audiobook"])
+        self.assertFalse(second["audiobook"])
+
+    def test_search_audiobooks_area(self):
+        s = mock.Mock()
+        s.get.return_value = resp(text=AUDIO_RESULT)
+        data = katalog.search("x", library="vkmr", session=s, kind="audiobook")
+        self.assertEqual(s.get.call_args[1]["params"]["area"], 702)
+        self.assertEqual(data["kind"], "audiobook")
+        katalog.search("x", library="vkmr", session=s, kind="all")
+        self.assertEqual(s.get.call_args[1]["params"]["area"], -1)
+        katalog.search("x", library="vkmr", session=s, kind="nonsense")
+        self.assertEqual(s.get.call_args[1]["params"]["area"], 701)
+
+    def test_other_library_filters_by_kind(self):
+        s = mock.Mock()
+        s.get.return_value = resp(text=RESULT + AUDIO_RESULT)
+        ids = lambda kind: [r["work_id"] for r in katalog.search(  # noqa: E731
+            "x", library="other", session=s, kind=kind)["results"]]
+        self.assertEqual(ids("ebook"), [1481396])
+        self.assertEqual(ids("audiobook"), [1452934])
+        self.assertEqual(ids("all"), [1481396, 1452934])
 
     def _robot(self):
         r = resp(text="<html>check</html>")

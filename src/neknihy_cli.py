@@ -19,6 +19,8 @@ without a GUI and without a config file:
     NEKNIHY_DEBUG      "1" = print HTTP debug output
 
 Search the library catalogue (no login): neknihy_cli.py --search QUERY
+    (audiobooks: add --kind audiobook, both: --kind all)
+Audiobooks are downloaded into WORKDIR but not synced to READERDIR.
     NEKNIHY_TSK_USERNAME  library catalogue (katalog.tsk.sk) login, for --borrow
     NEKNIHY_TSK_PASSWORD  library catalogue password
     NEKNIHY_TSK_LIBRARY   library code in the catalogue URL (default vkmr)
@@ -92,6 +94,8 @@ def sync_ingest(app):
         nk = book.get("neknihy", {})
         if nk.get("status") != "ok" or nk.get("ingested"):
             continue
+        if app.bookIsAudio(i):  # Calibre does not import audiobooks
+            continue
         src = app.bookFile(i)
         if not src or not os.path.exists(src):
             continue
@@ -153,17 +157,19 @@ def run_once(app, auto_return=None, ingest=None):
     sync(app, ingest)
 
 
-def print_search(query):
+def print_search(query, kind="ebook"):
     """Print catalogue search results; returns the exit code."""
     try:
-        res = katalog.search(query, library=env("NEKNIHY_TSK_LIBRARY", "vkmr"))
+        res = katalog.search(query, library=env("NEKNIHY_TSK_LIBRARY", "vkmr"), kind=kind)
     except Exception as e:
         log.error("Search failed: %s", e)
         return 1
     for r in res["results"]:
-        print("%-9d %s – %s (%s)" % (r["work_id"], r["title"], "; ".join(r["authors"]),
-                                     r["publish_info"]))
-    print("%d e-book(s). Borrow one with: --borrow WORK_ID" % res["total"])
+        print("%-9d %s%s – %s (%s)" % (r["work_id"], "[audio] " if r["audiobook"] else "",
+                                       r["title"], "; ".join(r["authors"]),
+                                       r["publish_info"]))
+    noun = {"ebook": "e-book(s)", "audiobook": "audiobook(s)"}.get(res["kind"], "title(s)")
+    print("%d %s. Borrow one with: --borrow WORK_ID" % (res["total"], noun))
     return 0
 
 
@@ -173,11 +179,14 @@ def main():
     parser.add_argument("--workdir", help="override NEKNIHY_WORKDIR")
     parser.add_argument("--readerdir", help="override NEKNIHY_READERDIR")
     parser.add_argument("--borrow", metavar="WORK",
-                        help="borrow an e-book in katalog.tsk.sk (link or work ID), "
+                        help="borrow an e-book or audiobook in katalog.tsk.sk "
+                             "(link or work ID), "
                              "download it and exit")
     parser.add_argument("--search", metavar="QUERY",
                         help="search e-books in katalog.tsk.sk, print them and exit "
                              "(no login needed)")
+    parser.add_argument("--kind", choices=katalog.KINDS, default="ebook",
+                        help="what --search looks for: ebook (default), audiobook or all")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, stream=sys.stdout,
@@ -191,7 +200,7 @@ def main():
     signal.signal(signal.SIGINT, handle_signal)
 
     if args.search:
-        sys.exit(print_search(args.search))
+        sys.exit(print_search(args.search, args.kind))
 
     app = build_app(args)
     if args.borrow:
