@@ -14,6 +14,7 @@ posts protected by a ``_csrf`` token bound to the session cookie.
 import logging
 import re
 from html.parser import HTMLParser
+from urllib.parse import urlparse
 
 import requests
 
@@ -37,10 +38,17 @@ class BorrowError(KatalogError):
 
 
 class BotCheckError(KatalogError):
-    """The catalogue answered with its anti-bot check instead of content."""
+    """The catalogue kept answering with its anti-bot check."""
 
 
-BOT_CHECK_MARKERS = ("i-am-not-a-robot", "/jsapi/pow/token")
+# Requests without an ``AuthToken`` cookie (e.g. searches) are redirected to
+# /library/<lib>/i-am-not-a-robot. That page only runs a tiny script: it
+# fetches /jsapi/pow/token ({"token": "<uuid>"}), stores it in the
+# ``AuthToken`` cookie and reloads. Despite the name there is no proof of
+# work to compute. Neknihy does the same once and repeats the request.
+BOT_CHECK_MARKERS = ("i-am-not-a-robot", "i-am-a-robot")
+TOKEN_PATH = "/jsapi/pow/token"
+TOKEN_COOKIE = "AuthToken"
 
 
 def is_bot_check(response):
@@ -49,9 +57,34 @@ def is_bot_check(response):
     return any(m in url or m in loc for m in BOT_CHECK_MARKERS)
 
 
-BOT_CHECK_MSG = ("The library catalogue asked for a browser check (anti-bot page), "
-                 "so Neknihy cannot use it without a browser. Search and borrow "
-                 "in the catalogue in your web browser.")
+BOT_CHECK_MSG = ("The library catalogue keeps asking for its browser check "
+                 "(anti-bot page). Try again later or use the catalogue in "
+                 "your web browser.")
+
+
+def pass_bot_check(session, base_url=BASE_URL, timeout=30):
+    """Get a token from the catalogue and keep it as the AuthToken cookie."""
+    r = session.get(base_url.rstrip("/") + TOKEN_PATH, timeout=timeout)
+    r.raise_for_status()
+    try:
+        token = (r.json() or {}).get("token")
+    except ValueError:
+        token = None
+    if not token:
+        raise BotCheckError(BOT_CHECK_MSG)
+    session.cookies.set(TOKEN_COOKIE, token, domain=urlparse(base_url).hostname, path="/")
+    log.info("Catalogue browser check passed")
+
+
+def get_checked(session, url, base_url=BASE_URL, timeout=30, **kwargs):
+    """GET that passes the anti-bot check once if the catalogue asks for it."""
+    r = session.get(url, timeout=timeout, **kwargs)
+    if is_bot_check(r):
+        pass_bot_check(session, base_url, timeout)
+        r = session.get(url, timeout=timeout, **kwargs)
+        if is_bot_check(r):
+            raise BotCheckError(BOT_CHECK_MSG)
+    return r
 
 
 def parse_work_id(text):
@@ -94,7 +127,8 @@ class KatalogTSK():
         self.username = username
         self.password = password
         self.library = library or "vkmr"
-        self.lib_url = "%s/library/%s" % (base_url.rstrip("/"), self.library)
+        self.base_url = base_url.rstrip("/")
+        self.lib_url = "%s/library/%s" % (self.base_url, self.library)
         self.timeout = timeout
         self.logged_in = False
         self.session = requests.Session()
@@ -109,9 +143,7 @@ class KatalogTSK():
         The token is bound to the session, so any page of the current
         session will do.
         """
-        r = self.session.get(self._url(path), timeout=self.timeout)
-        if is_bot_check(r):
-            raise BotCheckError(BOT_CHECK_MSG)
+        r = get_checked(self.session, self._url(path), self.base_url, self.timeout)
         r.raise_for_status()
         parser = _CsrfParser()
         parser.feed(r.text)
@@ -152,8 +184,8 @@ class KatalogTSK():
 
     def _get_json(self, path, params=None, retry=True):
         self._ensure_login()
-        r = self.session.get(self._url(path), params=params,
-                             allow_redirects=False, timeout=self.timeout)
+        r = get_checked(self.session, self._url(path), self.base_url, self.timeout,
+                        params=params, allow_redirects=False)
         if r.status_code in REDIRECT_CODES or r.status_code in (401, 403):
             if retry:  # session expired -> log in again once
                 self.logged_in = False
@@ -361,10 +393,8 @@ def search(query, library="vkmr", ebooks_only=True, page=1, page_size=PAGE_SIZE,
     if own:
         s.headers.update({"User-Agent": USER_AGENT})
     try:
-        r = s.get("%s/library/%s/search" % (base_url.rstrip("/"), library),
-                  params=params, timeout=timeout)
-        if is_bot_check(r):
-            raise BotCheckError(BOT_CHECK_MSG)
+        r = get_checked(s, "%s/library/%s/search" % (base_url.rstrip("/"), library),
+                        base_url, timeout, params=params)
         r.raise_for_status()
     finally:
         if own:

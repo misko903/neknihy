@@ -189,10 +189,39 @@ class Search(unittest.TestCase):
         self.assertEqual(s.get.call_args[1]["params"]["area"], -1)
         self.assertEqual([r["work_id"] for r in data["results"]], [1481396])
 
-    def test_bot_check(self):
-        s = mock.Mock()
+    def _robot(self):
         r = resp(text="<html>check</html>")
         r.url = "https://katalog.tsk.sk/library/vkmr/i-am-not-a-robot?returnUrl=x"
-        s.get.return_value = r
+        return r
+
+    def test_bot_check_passed(self):
+        s = mock.Mock()
+        token = resp(text="")
+        token.json = mock.Mock(return_value={"token": "abc-123"})
+        s.get.side_effect = [self._robot(), token, resp(text=RESULT)]
+        data = katalog.search("dahl", session=s)
+        self.assertEqual(len(data["results"]), 2)
+        self.assertEqual(s.get.call_args_list[1][0][0],
+                         "https://katalog.tsk.sk/jsapi/pow/token")
+        s.cookies.set.assert_called_once_with(
+            "AuthToken", "abc-123", domain="katalog.tsk.sk", path="/")
+
+    def test_bot_check_redirect_without_follow(self):
+        r = resp(302, location="https://katalog.tsk.sk/library/vkmr/i-am-not-a-robot?x")
+        self.assertTrue(katalog.is_bot_check(r))
+
+    def test_bot_check_repeated(self):
+        s = mock.Mock()
+        token = resp(text="")
+        token.json = mock.Mock(return_value={"token": "abc-123"})
+        s.get.side_effect = [self._robot(), token, self._robot()]
+        with self.assertRaises(katalog.BotCheckError):
+            katalog.search("dahl", session=s)
+
+    def test_bot_check_no_token(self):
+        s = mock.Mock()
+        token = resp(text="")
+        token.json = mock.Mock(return_value={})
+        s.get.side_effect = [self._robot(), token]
         with self.assertRaises(katalog.BotCheckError):
             katalog.search("dahl", session=s)
