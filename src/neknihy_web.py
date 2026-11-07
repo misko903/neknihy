@@ -692,8 +692,7 @@ def render_search(svc, t, query, page_no, kind="ebook"):
             action = ""
         cover = ("<img src='%s' alt='' loading='lazy' class='cover'>" % esc(r["cover"])
                  if r["cover"] else "")
-        badge = ("<span class='st tag'>%s%s</span>" % (icon("audio"),
-                                                              esc(t("kind.audio_tag")))
+        badge = ("<span class='st tag'>%s%s</span>" % (icon("audio"), esc(t("kind.audio_tag")))
                  if r.get("audiobook") else "")
         rows.append(
             "<tr><td class='hide-sm'>%s</td><td><a href='%s/detail/%d' target='_blank' "
