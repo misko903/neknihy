@@ -1,4 +1,5 @@
 from neknihy.api import API
+from neknihy.katalog import KatalogTSK
 from neknihy.settings import Settings
 
 import os.path
@@ -15,12 +16,29 @@ class App():
         self.settings = Settings(config)
         self.settings.load()
         self.books = []
+        self.katalog = None
         self.loadBooks()
 
-    def updateSettings(self, email, password, workdir, readerdir, convert, convertor):
-        self.settings.update(email, password, workdir, readerdir, convert, convertor)
+    def updateSettings(self, email, password, workdir, readerdir, convert, convertor,
+                       **katalog):
+        self.settings.update(email, password, workdir, readerdir, convert, convertor,
+                             **katalog)
         self.api.logout()
+        self.katalog = None
         self.loadBooks()
+
+    def borrowFromKatalog(self, work_id):
+        """Borrow an e-book in the library catalogue (katalog.tsk.sk)."""
+        s = self.settings
+        if not s.katalog_configured():
+            raise RuntimeError("Library catalogue login is not set")
+        if self.katalog is None:
+            self.katalog = KatalogTSK(s.tsk_username, s.tsk_password, s.tsk_library)
+        try:
+            return self.katalog.borrow(work_id)
+        except Exception:
+            self.katalog = None  # start with a fresh session next time
+            raise
 
     def saveBooks(self):
         if not self.settings.configured():

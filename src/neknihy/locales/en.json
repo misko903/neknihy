@@ -40,5 +40,12 @@
   "set.save": "Save",
   "err.not_found": "Not found",
   "err.forbidden": "Forbidden",
+  "borrow.title": "Borrow an e-book (library catalogue)",
+  "borrow.label": "Paste a link to the book in katalog.tsk.sk or its work ID. Neknihy borrows it and downloads it from Palmknihy.",
+  "borrow.not_configured": "To borrow from the library catalogue, fill in its login in the {settings}.",
+  "btn.borrow": "Borrow",
+  "set.tsk": "Library catalogue (katalog.tsk.sk)",
+  "set.tsk_username": "Catalogue login (e-mail or reader card number)",
+  "set.tsk_library": "Library code from the catalogue address, e.g. vkmr",
   "log.title": "Log"
 }

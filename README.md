@@ -75,9 +75,23 @@ podobě, stejně jako u desktopové verze). Webové rozhraní chraňte heslem
 | `NEKNIHY_AUTO_RETURN` | `1` | mazat soubory prošlých výpůjček |
 | `NEKNIHY_CONVERT` | `0` | převod na .mobi (vyžaduje Calibre, v obrazu není) |
 | `NEKNIHY_DEBUG` | `0` | výpis HTTP komunikace |
+| `NEKNIHY_TSK_USERNAME` | – | počáteční přihlášení do katalogu knihovny (katalog.tsk.sk) |
+| `NEKNIHY_TSK_PASSWORD` | – | počáteční heslo do katalogu knihovny |
+| `NEKNIHY_TSK_LIBRARY` | `vkmr` | kód knihovny z adresy katalogu (`katalog.tsk.sk/library/<kód>/`) |
 
-Hodnoty `NEKNIHY_EMAIL` … `NEKNIHY_AUTO_RETURN` slouží jen jako počáteční,
-dále platí to, co uložíte ve webovém rozhraní.
+Hodnoty `NEKNIHY_EMAIL` … `NEKNIHY_AUTO_RETURN` a `NEKNIHY_TSK_*` slouží jen
+jako počáteční, dále platí to, co uložíte ve webovém rozhraní.
+
+### Půjčování z katalogu knihovny (katalog.tsk.sk)
+
+Knihovny Trenčianskeho samosprávneho kraja (např. VKMR Trenčín) půjčují
+e-knihy Palmknihy přes svůj online katalog. Po vyplnění přihlášení ke katalogu
+v nastavení se na hlavní stránce objeví pole „Vypůjčit e-knihu“: vložte odkaz
+na knihu v katalogu nebo její ID díla (`workId`). Neknihy knihu vypůjčí a hned
+ji stáhne z Palmknihy (a případně synchronizuje).
+
+Z příkazové řádky:
+`NEKNIHY_TSK_USERNAME=... NEKNIHY_TSK_PASSWORD=... NEKNIHY_EMAIL=... NEKNIHY_PASSWORD=... python3 src/neknihy_cli.py --borrow 1439847`
 
 Webové rozhraní je v češtině, slovenštině, angličtině a němčině. Jazyk se
 vybírá podle prohlížeče a dá se přepnout v záhlaví stránky. Překlady jsou

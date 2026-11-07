@@ -40,5 +40,12 @@
   "set.save": "Speichern",
   "err.not_found": "Nicht gefunden",
   "err.forbidden": "Verboten",
+  "borrow.title": "E-Book ausleihen (Bibliothekskatalog)",
+  "borrow.label": "Link zum Buch in katalog.tsk.sk oder seine Werk-ID (workId) einfügen. Neknihy leiht es aus und lädt es von Palmknihy herunter.",
+  "borrow.not_configured": "Um aus dem Bibliothekskatalog auszuleihen, die Katalog-Anmeldung in den {settings} ausfüllen.",
+  "btn.borrow": "Ausleihen",
+  "set.tsk": "Bibliothekskatalog (katalog.tsk.sk)",
+  "set.tsk_username": "Katalog-Anmeldung (E-Mail oder Lesernummer)",
+  "set.tsk_library": "Bibliothekskürzel aus der Katalogadresse, z. B. vkmr",
   "log.title": "Protokoll"
 }

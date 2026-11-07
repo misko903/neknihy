@@ -9,10 +9,9 @@
 services:
   neknihy:
     # Zostaví obraz priamo z GitHubu (netreba sťahovať zdrojáky).
-    # Po zlúčení PR do main môžeš riadky "build:" a "pull_policy:" nahradiť
-    # hotovým obrazom:
+    # Riadky "build:" a "pull_policy:" môžeš nahradiť hotovým obrazom:
     #   image: ghcr.io/misko903/neknihy:latest
-    build: https://github.com/misko903/neknihy.git#headless-docker
+    build: https://github.com/misko903/neknihy.git#main
     pull_policy: build            # obraz sa zostaví, nesťahuje z registra
     container_name: neknihy
     restart: unless-stopped
@@ -26,6 +25,10 @@ services:
       # Voliteľné počiatočné hodnoty (dajú sa nastaviť aj vo webe):
       # NEKNIHY_EMAIL: "ty@example.com"
       # NEKNIHY_PASSWORD: "heslo-palmknihy"
+      # Požičiavanie z katalógu knižnice katalog.tsk.sk (dá sa nastaviť aj vo webe):
+      # NEKNIHY_TSK_USERNAME: "ty@example.com"
+      # NEKNIHY_TSK_PASSWORD: "heslo-katalog"
+      # NEKNIHY_TSK_LIBRARY: "vkmr"
       # NEKNIHY_READERDIR: "/reader"
     volumes:
       - /volume1/docker/neknihy/config:/config   # nastavenia

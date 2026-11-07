@@ -87,6 +87,30 @@ class Settings():
     def convertor(self, value):
         return self._set_attr("convertor", value)
 
+    @property
+    def tsk_username(self):
+        return self._get_attr("tsk_username")
+
+    @tsk_username.setter
+    def tsk_username(self, value):
+        return self._set_attr("tsk_username", value)
+
+    @property
+    def tsk_password(self):
+        return self._get_attr("tsk_password")
+
+    @tsk_password.setter
+    def tsk_password(self, value):
+        return self._set_attr("tsk_password", value)
+
+    @property
+    def tsk_library(self):
+        return self._get_attr("tsk_library")
+
+    @tsk_library.setter
+    def tsk_library(self, value):
+        return self._set_attr("tsk_library", value)
+
     def load(self):
         config = configparser.ConfigParser()
         config.read(self._config_file)
@@ -96,6 +120,9 @@ class Settings():
         self.readerdir = config.get("settings", "readerdir", fallback="")
         self.convert = config.get("settings", "convert", fallback="0")
         self.convertor = config.get("settings", "convertor", fallback="ebook-convert")
+        self.tsk_username = config.get("settings", "tsk_username", fallback="")
+        self.tsk_password = config.get("settings", "tsk_password", fallback="")
+        self.tsk_library = config.get("settings", "tsk_library", fallback="vkmr")
         if self.convertor == "":
             if sys.platform.startswith("win"):
                 self.convertor = "ebook-convert.exe"
@@ -113,7 +140,8 @@ class Settings():
         self._changed = False
 
     def update(self, email=None, password=None, workdir=None,
-               readerdir=None, convert=None, convertor=None):
+               readerdir=None, convert=None, convertor=None,
+               tsk_username=None, tsk_password=None, tsk_library=None):
         if email is not None:
             self.email = email
         if password is not None:
@@ -126,6 +154,12 @@ class Settings():
             self.convert = convert
         if convertor is not None:
             self.convertor = convertor
+        if tsk_username is not None:
+            self.tsk_username = tsk_username
+        if tsk_password is not None:
+            self.tsk_password = tsk_password
+        if tsk_library is not None:
+            self.tsk_library = tsk_library
         self.save()
 
     def configured(self):
@@ -134,3 +168,6 @@ class Settings():
             self.password == "" or
             self.workdir == ""
         )
+
+    def katalog_configured(self):
+        return bool(self.tsk_username and self.tsk_password)

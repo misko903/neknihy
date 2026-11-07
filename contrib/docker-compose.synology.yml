@@ -18,10 +18,10 @@ services:
         ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 NEKNIHY_WORKDIR=/books NEKNIHY_CONFIG_DIR=/config NEKNIHY_WEB_PORT=8478
         WORKDIR /app
         RUN pip install --no-cache-dir "requests>=2.30.0"
-        ADD https://github.com/misko903/neknihy/archive/refs/heads/headless-docker.tar.gz /tmp/src.tar.gz
+        ADD https://github.com/misko903/neknihy/archive/refs/heads/main.tar.gz /tmp/src.tar.gz
         RUN tar -xzf /tmp/src.tar.gz -C /tmp \
-         && cp -r /tmp/neknihy-headless-docker/src/neknihy /tmp/neknihy-headless-docker/src/neknihy_cli.py /tmp/neknihy-headless-docker/src/neknihy_web.py /app/ \
-         && rm -rf /tmp/src.tar.gz /tmp/neknihy-headless-docker \
+         && cp -r /tmp/neknihy-main/src/neknihy /tmp/neknihy-main/src/neknihy_cli.py /tmp/neknihy-main/src/neknihy_web.py /app/ \
+         && rm -rf /tmp/src.tar.gz /tmp/neknihy-main \
          && mkdir -p /books /config && chmod 777 /books /config
         EXPOSE 8478
         ENTRYPOINT ["python", "/app/neknihy_web.py"]
@@ -38,6 +38,10 @@ services:
       # Voliteľné počiatočné hodnoty (dajú sa nastaviť aj vo webe):
       # NEKNIHY_EMAIL: "ty@example.com"
       # NEKNIHY_PASSWORD: "heslo-palmknihy"
+      # Požičiavanie z katalógu knižnice katalog.tsk.sk (dá sa nastaviť aj vo webe):
+      # NEKNIHY_TSK_USERNAME: "ty@example.com"
+      # NEKNIHY_TSK_PASSWORD: "heslo-katalog"
+      # NEKNIHY_TSK_LIBRARY: "vkmr"
     volumes:
       - /volume1/docker/neknihy/config:/config   # nastavenia
       - /volume1/docker/neknihy/books:/books     # stiahnuté knihy
