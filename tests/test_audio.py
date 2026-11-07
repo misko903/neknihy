@@ -200,5 +200,17 @@ class AppAudiobooks(unittest.TestCase):
         self.assertEqual(self.app.books, [])
 
 
+class CatalogueIdsTest(unittest.TestCase):
+    def test_cover_id_and_palm_id(self):
+        from neknihy.api import catalogueIds
+        book = {"palm_id": 102228, "item_type": "ebook",
+                "cover": "https://cdn-b1.palmknihy.cz/x/01KZ/cover_429088.jpg"}
+        self.assertEqual(catalogueIds(book), {102228, 429088})
+
+    def test_audiobook_palm_id_is_not_a_catalogue_id(self):
+        from neknihy.api import catalogueIds
+        self.assertEqual(catalogueIds({"palm_id": 5, "item_type": "audiobook"}), set())
+
+
 if __name__ == "__main__":
     unittest.main()

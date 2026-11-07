@@ -18,6 +18,26 @@ def isAudiobook(book):
     return (book or {}).get("item_type") == AUDIOBOOK
 
 
+_COVER_ID_RE = re.compile(r"cover_(\d+)\.\w+$")
+
+
+def catalogueIds(book):
+    """IDs under which the library catalogue may link a loan.
+
+    The catalogue links to palmknihy.cz/kniha/<id>. For older e-books that
+    is the loan's palm_id, but newer ones (and audiobooks) have a different
+    web ID, which only appears in the cover URL (.../cover_<id>.jpg).
+    """
+    book = book or {}
+    ids = set()
+    if not isAudiobook(book) and book.get("palm_id") is not None:
+        ids.add(book["palm_id"])
+    m = _COVER_ID_RE.search(book.get("cover") or "")
+    if m:
+        ids.add(int(m.group(1)))
+    return ids
+
+
 def slugify(text):
     """'Třináct záhad' -> 'trinact-zahad' (safe as a file/folder name)."""
     text = unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode()

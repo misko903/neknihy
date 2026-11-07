@@ -39,7 +39,7 @@ from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, quote, urlparse
 
 from neknihy import i18n
-from neknihy.api import isAudiobook
+from neknihy.api import catalogueIds, isAudiobook
 from neknihy.app import App
 from neknihy import katalog
 from neknihy.katalog import parse_work_id
@@ -214,18 +214,18 @@ class Service:
                 if b.get("neknihy", {}).get("status") != "expired"}
 
     def _find_awaited(self, aw):
-        """The awaited book in the loans list: by palm_id if the catalogue
-        told us (e-books only), otherwise the first active loan that was not
-        there before."""
+        """The awaited book in the loans list: the loan the catalogue ID
+        points to, otherwise the first active loan that was not there
+        before (the catalogue ID is not always one the loan carries)."""
+        new = None
         for b in self.app.books:
             if b.get("neknihy", {}).get("status") == "expired":
                 continue
-            if aw["palm_id"] is not None:
-                if not isAudiobook(b) and b.get("palm_id") == aw["palm_id"]:
-                    return b
-            elif self._loan_key(b) not in aw["known"]:
+            if aw["palm_id"] is not None and aw["palm_id"] in catalogueIds(b):
                 return b
-        return None
+            if new is None and self._loan_key(b) not in aw["known"]:
+                new = b
+        return new
 
     def borrow(self, work_id, palm_id=None, title=""):
         """Borrow in the library catalogue, then wait until Palmknihy lists the
@@ -674,9 +674,9 @@ def render_search(svc, t, query, page_no, kind="ebook"):
         return page(t, "%s – Neknihy" % t("btn.search"), "".join(body), "/")
 
     active = [b for b in app.books if b.get("neknihy", {}).get("status") != "expired"]
-    loaned = {b.get("palm_id") for b in active if not isAudiobook(b)}
-    # the catalogue links audiobooks to a palmknihy.cz page whose ID is not
-    # the one in the loans list, so they are matched by title
+    # the catalogue links to palmknihy.cz/kniha/<id>, which is often not the
+    # loan's palm_id (see catalogueIds); audiobooks are matched by title too
+    loaned = set().union(*(catalogueIds(b) for b in active))
     loaned_audio = {(b.get("title") or "").strip().lower() for b in active if isAudiobook(b)}
     can_borrow = s.katalog_configured()
     waiting = {aw["work_id"] for aw in svc.awaiting}
@@ -686,8 +686,8 @@ def render_search(svc, t, query, page_no, kind="ebook"):
         if r["work_id"] in waiting:
             action = "<span class='st st-pending'>%s%s</span>" % (
                 icon("pending"), esc(t("search.borrowed_wait")))
-        elif (r["title"].strip().lower() in loaned_audio if r.get("audiobook") else
-              r["palm_id"] is not None and r["palm_id"] in loaned):
+        elif ((r["palm_id"] is not None and r["palm_id"] in loaned) or
+              (r.get("audiobook") and r["title"].strip().lower() in loaned_audio)):
             action = "<span class='st st-ok'>%s%s</span>" % (icon("ok"), esc(t("search.loaned")))
         elif r["ebook"] and can_borrow:
             action = ("<form method='post' action='/borrow'>"
