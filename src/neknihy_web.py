@@ -39,6 +39,7 @@ from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, quote, urlparse
 
 from neknihy import i18n
+from neknihy.api import isAudiobook
 from neknihy.app import App
 from neknihy import katalog
 from neknihy.katalog import parse_work_id
@@ -203,21 +204,26 @@ class Service:
             self.lock.release()
             self.wake.set()
 
+    @staticmethod
+    def _loan_key(book):
+        # e-books and audiobooks have separate palm_id ranges
+        return (isAudiobook(book), book.get("palm_id"))
+
     def _active_ids(self):
-        return {b.get("palm_id") for b in self.app.books
+        return {self._loan_key(b) for b in self.app.books
                 if b.get("neknihy", {}).get("status") != "expired"}
 
     def _find_awaited(self, aw):
         """The awaited book in the loans list: by palm_id if the catalogue
-        told us, otherwise the first active loan that was not there before."""
+        told us (e-books only), otherwise the first active loan that was not
+        there before."""
         for b in self.app.books:
             if b.get("neknihy", {}).get("status") == "expired":
                 continue
-            pid = b.get("palm_id")
             if aw["palm_id"] is not None:
-                if pid == aw["palm_id"]:
+                if not isAudiobook(b) and b.get("palm_id") == aw["palm_id"]:
                     return b
-            elif pid not in aw["known"]:
+            elif self._loan_key(b) not in aw["known"]:
                 return b
         return None
 
@@ -667,8 +673,11 @@ def render_search(svc, t, query, page_no, kind="ebook"):
             icon("warn"), esc(t("search.error", error=e))))
         return page(t, "%s – Neknihy" % t("btn.search"), "".join(body), "/")
 
-    loaned = {b.get("palm_id") for b in app.books
-              if b.get("neknihy", {}).get("status") != "expired"}
+    active = [b for b in app.books if b.get("neknihy", {}).get("status") != "expired"]
+    loaned = {b.get("palm_id") for b in active if not isAudiobook(b)}
+    # the catalogue links audiobooks to a palmknihy.cz page whose ID is not
+    # the one in the loans list, so they are matched by title
+    loaned_audio = {(b.get("title") or "").strip().lower() for b in active if isAudiobook(b)}
     can_borrow = s.katalog_configured()
     waiting = {aw["work_id"] for aw in svc.awaiting}
     lib_url = "%s/library/%s" % (katalog.BASE_URL, esc(s.tsk_library or "vkmr"))
@@ -677,7 +686,8 @@ def render_search(svc, t, query, page_no, kind="ebook"):
         if r["work_id"] in waiting:
             action = "<span class='st st-pending'>%s%s</span>" % (
                 icon("pending"), esc(t("search.borrowed_wait")))
-        elif r["palm_id"] is not None and r["palm_id"] in loaned:
+        elif (r["title"].strip().lower() in loaned_audio if r.get("audiobook") else
+              r["palm_id"] is not None and r["palm_id"] in loaned):
             action = "<span class='st st-ok'>%s%s</span>" % (icon("ok"), esc(t("search.loaned")))
         elif r["ebook"] and can_borrow:
             action = ("<form method='post' action='/borrow'>"
@@ -685,7 +695,9 @@ def render_search(svc, t, query, page_no, kind="ebook"):
                       "<input type='hidden' name='palm_id' value='%s'>"
                       "<input type='hidden' name='title' value='%s'>"
                       "<button class='primary' title='%s'>%s<span>%s</span></button></form>"
-                      % (r["work_id"], esc(r["palm_id"]), esc(r["title"]),
+                      % (r["work_id"],
+                         "" if r.get("audiobook") else esc(r["palm_id"]),
+                         esc(r["title"]),
                          esc(t("btn.borrow")), icon("borrow"),
                          esc(t("btn.borrow"))))
         else:
