@@ -153,8 +153,12 @@ class KatalogTSK():
 
     def login(self):
         token = self._get_csrf("/")
+        # The login form posts to /process-login at the site root (the
+        # library is passed in "wd"). /library/<lib>/process-login is not the
+        # login handler: it just redirects to the library page, which looks
+        # like a successful login but leaves the session anonymous.
         r = self.session.post(
-            self._url("process-login"),
+            self.base_url + "/process-login",
             data={
                 "wd": self.library,
                 "target_url": "",

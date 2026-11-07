@@ -59,7 +59,8 @@ class Client(unittest.TestCase):
         self.assertTrue(self.k.logged_in)
         url, = self.k.session.post.call_args.args
         data = self.k.session.post.call_args.kwargs["data"]
-        self.assertTrue(url.endswith("/library/vkmr/process-login"))
+        # the real login handler is at the site root, not under /library/<lib>/
+        self.assertEqual(url, "https://katalog.tsk.sk/process-login")
         self.assertEqual(data, {"wd": "vkmr", "target_url": "", "username": "user",
                                 "password": "pw", "_csrf": "TOKEN-1"})
 
