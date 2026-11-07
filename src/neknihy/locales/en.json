@@ -55,5 +55,10 @@
   "search.error": "Catalogue search failed: {error}",
   "log.title": "Log",
   "set.lang_auto": "Automatic (browser language)",
-  "set.ingest": "Sync folder is a Calibre-Web ingest folder (copy each book only once)"
+  "set.ingest": "Sync folder is a Calibre-Web ingest folder (copy each book only once)",
+  "await.title": "Borrowed: {title}",
+  "await.borrowing": "Borrowing in the library catalogue…",
+  "await.waiting": "Waiting for the loan to appear in Palmknihy, then it is downloaded right away (checking every {s} s).",
+  "await.found": "The loan is in Palmknihy, downloading… (if it is not available yet, trying again in {s} s).",
+  "search.borrowed_wait": "borrowed, downloading soon"
 }

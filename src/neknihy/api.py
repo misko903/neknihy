@@ -36,6 +36,10 @@ class API():
         self._login = None
         self._rents = None
 
+    def forgetRents(self):
+        """Drop the cached loans list (keep the login) so it is fetched again."""
+        self._rents = None
+
     def refreshListOfRentedBooks(self):
         headers = {
             "Content-Type": "application/json",

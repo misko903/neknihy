@@ -55,5 +55,10 @@
   "search.error": "Vyhľadávanie v katalógu zlyhalo: {error}",
   "log.title": "Záznam",
   "set.lang_auto": "Automaticky (podľa prehliadača)",
-  "set.ingest": "Priečinok na synchronizáciu je ingest priečinok Calibre-Web (každú knihu skopírovať iba raz)"
+  "set.ingest": "Priečinok na synchronizáciu je ingest priečinok Calibre-Web (každú knihu skopírovať iba raz)",
+  "await.title": "Požičaná: {title}",
+  "await.borrowing": "Požičiavam v katalógu knižnice…",
+  "await.waiting": "Čakám, kým sa výpožička objaví v Palmknihách, potom sa hneď stiahne (kontrola každých {s} s).",
+  "await.found": "Výpožička je v Palmknihách, sťahujem… (ak ešte nie je sprístupnená, skúsim znova o {s} s).",
+  "search.borrowed_wait": "požičaná, o chvíľu sa stiahne"
 }

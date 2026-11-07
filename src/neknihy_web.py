@@ -9,6 +9,10 @@
                           taken from the browser, fallback cs. Each viewer
                           can pick a language or "Automatic (browser)" in
                           Settings (stored per browser in a cookie).
+    NEKNIHY_WAIT_STEP     after borrowing in the catalogue, seconds between
+                          checks of the Palmknihy loans (default 20)
+    NEKNIHY_WAIT_MAX      how long to keep checking for the new loan, in
+                          seconds (default 1800)
 
 Settings entered in the UI are stored in NEKNIHY_CONFIG_DIR. On first start
 NEKNIHY_EMAIL / NEKNIHY_PASSWORD / NEKNIHY_WORKDIR / NEKNIHY_READERDIR /
@@ -51,6 +55,9 @@ DEFAULT_LANG = i18n.normalize(env("NEKNIHY_LANG"))
 FALLBACK_LANG = "cs"  # the app's original language
 LANG_COOKIE = "neknihy_lang=%s; Path=/; Max-Age=31536000; SameSite=Lax"
 STATUSES = ("new", "pending", "ok", "expired")
+WAIT_STEP = int(env("NEKNIHY_WAIT_STEP", "20"))  # s between checks after a loan
+WAIT_MAX = int(env("NEKNIHY_WAIT_MAX", "1800"))  # s to wait for a new loan
+PAGE_REFRESH = 10  # s, auto-reload of the loans page while something is going on
 
 
 class MemoryLog(logging.Handler):
@@ -69,6 +76,7 @@ class Service:
         self.wake = threading.Event()
         self.stop = threading.Event()
         self.running = False
+        self.awaiting = []  # loans borrowed in the catalogue, waiting for Palmknihy
         self.last_run = None
         self.last_error = None  # None = OK, otherwise the error text
         self.next_run = None
@@ -195,26 +203,106 @@ class Service:
             self.lock.release()
             self.wake.set()
 
-    def borrow(self, work_id):
-        """Borrow in the library catalogue, then fetch it from Palmknihy."""
+    def _active_ids(self):
+        return {b.get("palm_id") for b in self.app.books
+                if b.get("neknihy", {}).get("status") != "expired"}
+
+    def _find_awaited(self, aw):
+        """The awaited book in the loans list: by palm_id if the catalogue
+        told us, otherwise the first active loan that was not there before."""
+        for b in self.app.books:
+            if b.get("neknihy", {}).get("status") == "expired":
+                continue
+            pid = b.get("palm_id")
+            if aw["palm_id"] is not None:
+                if pid == aw["palm_id"]:
+                    return b
+            elif pid not in aw["known"]:
+                return b
+        return None
+
+    def borrow(self, work_id, palm_id=None, title=""):
+        """Borrow in the library catalogue, then wait until Palmknihy lists the
+        loan and download it right away."""
         if not self.lock.acquire(blocking=False):
             log.warning("Another operation is running, try again later")
             return
         self.running = True
+        borrowed = False
+        # shown in the UI right away; state: borrowing -> waiting -> found
+        aw = {"work_id": work_id, "palm_id": palm_id, "title": title,
+              "known": self._active_ids(), "since": time.time(), "state": "borrowing"}
+        self.awaiting.append(aw)
         try:
-            app = self.app
-            app.borrowFromKatalog(work_id)
-            if app.settings.configured():
-                app.api.logout()
-                run_once(app, self.web["auto_return"], self.web.get("ingest", False))
+            self.app.borrowFromKatalog(work_id)
+            borrowed = True
+            aw["state"] = "waiting"
+            aw["since"] = time.time()
             self.last_error = None
         except Exception as e:
             log.error("borrow failed: %s", e)
             self.last_error = str(e)
+            self.awaiting.remove(aw)
         finally:
             self.last_run = datetime.now()
             self.running = False
             self.lock.release()
+            self.wake.set()
+        if borrowed:
+            self._wait_for_loan(aw)
+
+    def _wait_for_loan(self, aw):
+        """Refresh the Palmknihy loans every WAIT_STEP seconds until the
+        borrowed book is listed and downloaded (or WAIT_MAX runs out)."""
+        name = aw["title"] or "workId=%s" % aw["work_id"]
+        if not self.app.settings.configured():
+            log.warning("Palmknihy login not set, the borrowed book cannot be downloaded")
+            self.awaiting.remove(aw)
+            return
+        log.info("Waiting for the loan to appear in Palmknihy: %s", name)
+        app = self.app
+        app.api.logout()  # start with a fresh login
+        first = True
+        try:
+            while not self.stop.is_set():
+                if not first and self.stop.wait(WAIT_STEP):
+                    return
+                first = False
+                if time.time() - aw["since"] > WAIT_MAX:
+                    log.warning("The loan did not appear in Palmknihy within %d min: %s. "
+                                "It will be downloaded by the next run.", WAIT_MAX // 60, name)
+                    return
+                if not self.lock.acquire(timeout=WAIT_STEP):
+                    continue  # another operation is running, try next round
+                self.running = True
+                try:
+                    app.api.forgetRents()  # keep the login, fetch the loans again
+                    app.refreshRents()
+                    book = self._find_awaited(aw)
+                    if book is None:
+                        log.info("Loan not listed in Palmknihy yet, checking again in %d s",
+                                 WAIT_STEP)
+                        continue
+                    aw["state"] = "found"
+                    aw["title"] = book.get("title") or aw["title"]
+                    run_once(app, self.web["auto_return"], self.web.get("ingest", False))
+                    if book.get("neknihy", {}).get("status") == "ok":
+                        log.info("Borrowed book downloaded: %s", book["neknihy"]["filename"])
+                        self.last_error = None
+                        return
+                    log.info("Loan listed but the file is not available yet, "
+                             "checking again in %d s", WAIT_STEP)
+                except Exception as e:
+                    log.error("Waiting for loan: %s", e)
+                    self.last_error = str(e)
+                    app.api.logout()  # fresh login next round
+                finally:
+                    self.last_run = datetime.now()
+                    self.running = False
+                    self.lock.release()
+        finally:
+            if aw in self.awaiting:
+                self.awaiting.remove(aw)
             self.wake.set()
 
     def scheduler(self):
@@ -471,16 +559,17 @@ def esc(v):
     return html.escape(str(v if v is not None else ""))
 
 
-def page(t, title, body, path="/"):
+def page(t, title, body, path="/", refresh=None):
+    meta = "<meta http-equiv='refresh' content='%d'>" % refresh if refresh else ""
     return ("<!doctype html><html lang='%s'><head><meta charset='utf-8'>"
-            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>%s"
             "<title>%s</title><link rel='icon' type='image/png' href='/favicon.png'>"
             "<link rel='apple-touch-icon' href='/apple-touch-icon.png'>"
             "<style>%s</style></head><body>"
             "<header><h1><img src='/icon.png' alt=''>Neknihy</h1><nav><a href='/'>%s%s</a>"
             "<a href='/settings'>%s%s</a></nav>"
             "</header><main>%s</main></body></html>"
-            % (t.lang, esc(title), CSS, icon("loans"), esc(t("nav.loans")), icon("settings"),
+            % (t.lang, meta, esc(title), CSS, icon("loans"), esc(t("nav.loans")), icon("settings"),
                esc(t("nav.settings")), body))
 
 
@@ -539,16 +628,23 @@ def render_search(svc, t, query, page_no):
     loaned = {b.get("palm_id") for b in app.books
               if b.get("neknihy", {}).get("status") != "expired"}
     can_borrow = s.katalog_configured()
+    waiting = {aw["work_id"] for aw in svc.awaiting}
     lib_url = "%s/library/%s" % (katalog.BASE_URL, esc(s.tsk_library or "vkmr"))
     rows = []
     for r in res["results"]:
-        if r["palm_id"] is not None and r["palm_id"] in loaned:
+        if r["work_id"] in waiting:
+            action = "<span class='st st-pending'>%s%s</span>" % (
+                icon("pending"), esc(t("search.borrowed_wait")))
+        elif r["palm_id"] is not None and r["palm_id"] in loaned:
             action = "<span class='st st-ok'>%s%s</span>" % (icon("ok"), esc(t("search.loaned")))
         elif r["ebook"] and can_borrow:
             action = ("<form method='post' action='/borrow'>"
                       "<input type='hidden' name='work' value='%d'>"
+                      "<input type='hidden' name='palm_id' value='%s'>"
+                      "<input type='hidden' name='title' value='%s'>"
                       "<button class='primary' title='%s'>%s<span>%s</span></button></form>"
-                      % (r["work_id"], esc(t("btn.borrow")), icon("borrow"),
+                      % (r["work_id"], esc(r["palm_id"]), esc(r["title"]),
+                         esc(t("btn.borrow")), icon("borrow"),
                          esc(t("btn.borrow"))))
         else:
             action = ""
@@ -616,12 +712,21 @@ def render_index(svc, t):
         % (a, " class='primary'" if a == "run" else "", esc(t("btn." + a)), icon(a),
            esc(t("btn." + a)))
         for a in ("run", "refresh", "download", "sync", "return"))
-    body = ("<div class='card'><form method='post' action='/action' class='actions'>%s</form>"
+    awaiting = "".join(
+        "<div class='card'><p class='st st-pending' style='margin:0'>%s<b>%s</b></p>"
+        "<p class='mut' style='margin:4px 0 0'>%s</p></div>" % (
+            icon("pending"),
+            esc(t("await.title", title=aw["title"] or "workId %s" % aw["work_id"])),
+            esc(t("await." + aw["state"], s=WAIT_STEP)))
+        for aw in list(svc.awaiting))
+    body = ("%s<div class='card'><form method='post' action='/action' class='actions'>%s</form>"
             "<p class='mut'>%s</p></div>%s<div class='card'>%s</div>"
             "<div class='card'><h2>%s%s</h2><pre>%s</pre></div>" % (
-                buttons, "<br>".join(status), render_borrow(svc, t), table, icon("log"),
+                awaiting, buttons, "<br>".join(status), render_borrow(svc, t), table,
+                icon("log"),
                 esc(t("log.title")), esc("\n".join(reversed(svc.log.lines)))))
-    return page(t, "Neknihy", body, "/")
+    busy = svc.running or svc.awaiting
+    return page(t, "Neknihy", body, "/", refresh=PAGE_REFRESH if busy else None)
 
 
 def language_select(t, choice):
@@ -826,7 +931,13 @@ def make_handler(svc):
                 if work_id is None:
                     log.error("Not a catalogue link or work ID: %s", form.get("work", ""))
                 else:
-                    threading.Thread(target=svc.borrow, args=(work_id,), daemon=True).start()
+                    try:
+                        palm_id = int(form.get("palm_id", ""))
+                    except ValueError:
+                        palm_id = None
+                    title = form.get("title", "").strip()[:300]
+                    threading.Thread(target=svc.borrow, args=(work_id, palm_id, title),
+                                     daemon=True).start()
                     time.sleep(0.3)
                 self._redirect("/")
             else:

@@ -55,5 +55,10 @@
   "search.error": "Katalogsuche fehlgeschlagen: {error}",
   "log.title": "Protokoll",
   "set.lang_auto": "Automatisch (Browsersprache)",
-  "set.ingest": "Sync-Ordner ist ein Calibre-Web-Ingest-Ordner (jedes Buch nur einmal kopieren)"
+  "set.ingest": "Sync-Ordner ist ein Calibre-Web-Ingest-Ordner (jedes Buch nur einmal kopieren)",
+  "await.title": "Ausgeliehen: {title}",
+  "await.borrowing": "Ausleihe im Bibliothekskatalog…",
+  "await.waiting": "Warte, bis die Ausleihe bei Palmknihy erscheint, dann wird sie sofort heruntergeladen (Prüfung alle {s} s).",
+  "await.found": "Die Ausleihe ist bei Palmknihy, Download läuft… (falls noch nicht verfügbar, neuer Versuch in {s} s).",
+  "search.borrowed_wait": "ausgeliehen, wird gleich heruntergeladen"
 }
