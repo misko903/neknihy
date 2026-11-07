@@ -39,10 +39,11 @@ from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, quote, urlparse
 
 from neknihy import i18n
-from neknihy.api import catalogueIds, isAudiobook
+from neknihy.api import catalogueIds, isAudiobook, webId
 from neknihy.app import App
 from neknihy import katalog
 from neknihy.katalog import parse_work_id
+from neknihy.rating import MAX_IDS, Ratings
 from neknihy_cli import env, run_once, sync
 
 log = logging.getLogger("neknihy")
@@ -82,6 +83,7 @@ class Service:
         self.last_error = None  # None = OK, otherwise the error text
         self.next_run = None
         self.app = App(config=CONF_FILE)
+        self.ratings = Ratings(os.path.join(CONFIG_DIR, "ratings.json"))
         self.web = {"interval": 21600, "auto_return": True}
         self._load_web()
         self._seed_from_env()
@@ -585,6 +587,28 @@ td form{
 margin:0}
 .st-new{
 color:var(--fg)}
+th.sort button{
+padding:0;
+border:0;
+background:none;
+color:inherit;
+font:inherit;
+gap:4px}
+th.sort button::after{
+content:'↕';
+opacity:.35}
+th[aria-sort=ascending] button::after{
+content:'▲';
+opacity:1;
+font-size:10px}
+th[aria-sort=descending] button::after{
+content:'▼';
+opacity:1;
+font-size:10px}
+td.rt{
+white-space:nowrap}
+.rt b{
+font-weight:600}
 @media (max-width:600px){
 header{
 flex-wrap:wrap;
@@ -622,6 +646,77 @@ def fmt_date(t, value):
         return datetime.fromisoformat(value).strftime(t("fmt.date"))
     except Exception:
         return esc(value)
+
+
+def sort_th(label, kind="text", cls="", first="asc"):
+    """Header of a sortable column (kind "text" or "num"; see TABLE_JS)."""
+    return ("<th class='sort%s' data-type='%s' data-first='%s'><button type='button'>%s"
+            "</button></th>" % (" " + cls if cls else "", kind, first, esc(label)))
+
+
+def rating_attrs(t):
+    """Texts the table script needs to show ratings it loads later."""
+    return ("data-fmt='%s' data-none='%s' data-count='%s'" % (
+        esc(t("rating.value", p="{p}")), esc(t("rating.none")), esc(t("rating.count", n="{n}"))))
+
+
+def rating_cell(svc, t, web_id):
+    """Reader rating in percent; unknown ones are loaded by TABLE_JS."""
+    if web_id is None:
+        return "<td class='rt mut' data-v='-1'>–</td>"
+    r = svc.ratings.get(web_id)
+    if r is None:
+        return "<td class='rt mut' data-v='-1' data-rid='%d'>…</td>" % web_id
+    if r["percent"] is None:
+        return "<td class='rt mut' data-v='-1' title='%s'>–</td>" % esc(t("rating.none"))
+    return "<td class='rt' data-v='%d' title='%s'><b>%s</b></td>" % (
+        r["percent"], esc(t("rating.count", n=r["count"])),
+        esc(t("rating.value", p=r["percent"])))
+
+
+# Sortable tables: click a header to sort (again to reverse); the choice is
+# remembered per table, as the loans page reloads itself while busy. Cells
+# carry their sort value in data-v. Ratings not cached yet (data-rid) are
+# fetched from /ratings and filled in.
+TABLE_JS = """<script>(function(){
+function key(tb){return 'neknihy.sort.'+tb.id;}
+function apply(tb,col,dir){var ths=tb.tHead.rows[0].cells,th=ths[col];
+if(!th||!th.classList.contains('sort'))return;
+for(var i=0;i<ths.length;i++)ths[i].removeAttribute('aria-sort');
+th.setAttribute('aria-sort',dir>0?'ascending':'descending');
+var num=th.getAttribute('data-type')==='num',body=tb.tBodies[0],
+rows=Array.prototype.slice.call(body.rows),lang=document.documentElement.lang;
+rows.sort(function(a,b){var x=a.cells[col].getAttribute('data-v')||'',
+y=b.cells[col].getAttribute('data-v')||'',r=num?(Number(x)-Number(y)):
+x.localeCompare(y,lang,{sensitivity:'base',numeric:true});
+return r*dir||(a.getAttribute('data-i')-b.getAttribute('data-i'));});
+rows.forEach(function(r){body.appendChild(r);});
+try{localStorage.setItem(key(tb),col+':'+dir);}catch(e){}}
+function current(tb){var ths=tb.tHead.rows[0].cells;for(var i=0;i<ths.length;i++){
+var s=ths[i].getAttribute('aria-sort');if(s)return [i,s==='ascending'?1:-1];}return null;}
+document.querySelectorAll('table.sortable').forEach(function(tb){
+Array.prototype.forEach.call(tb.tBodies[0].rows,function(r,i){r.setAttribute('data-i',i);});
+Array.prototype.forEach.call(tb.tHead.rows[0].cells,function(th,col){
+if(!th.classList.contains('sort'))return;
+th.querySelector('button').addEventListener('click',function(){var c=current(tb);
+apply(tb,col,c&&c[0]===col?-c[1]:(th.getAttribute('data-first')==='desc'?-1:1));});});
+try{var s=(localStorage.getItem(key(tb))||'').split(':');
+if(s.length===2)apply(tb,+s[0],+s[1]);}catch(e){}
+var cells=tb.querySelectorAll('td[data-rid]'),ids=[];
+cells.forEach(function(td){var id=td.getAttribute('data-rid');if(ids.indexOf(id)<0)ids.push(id);});
+function fill(data,all){cells.forEach(function(td){var id=td.getAttribute('data-rid');
+if(id===null||!(all||id in data))return;var r=data[id];td.removeAttribute('data-rid');
+if(!r){td.textContent='–';return;}
+if(r.percent===null){td.textContent='–';td.title=tb.getAttribute('data-none');return;}
+td.classList.remove('mut');td.setAttribute('data-v',r.percent);
+td.title=tb.getAttribute('data-count').replace('{n}',r.count);
+var b=document.createElement('b');b.textContent=tb.getAttribute('data-fmt')
+.replace('{p}',r.percent);td.textContent='';td.appendChild(b);});
+var c=current(tb);if(c)apply(tb,c[0],c[1]);}
+(function next(){if(!ids.length)return;var part=ids.splice(0,16);
+fetch('/ratings?ids='+part.join(','),{credentials:'same-origin'}).then(function(r){
+if(!r.ok)throw r;return r.json();}).then(function(d){fill(d,false);next();})
+.catch(function(){fill({},true);});})();});})();</script>"""
 
 
 def search_form(t, query="", kind="ebook"):
@@ -706,15 +801,21 @@ def render_search(svc, t, query, page_no, kind="ebook"):
                  if r["cover"] else "")
         badge = ("<span class='st tag'>%s%s</span>" % (icon("audio"), esc(t("kind.audio_tag")))
                  if r.get("audiobook") else "")
+        authors = "; ".join(r["authors"])
         rows.append(
-            "<tr><td class='hide-sm'>%s</td><td><a href='%s/detail/%d' target='_blank' "
-            "rel='noopener'>%s</a>%s<div class='mut'>%s</div><div class='mut'>%s</div></td>"
-            "<td>%s</td></tr>" % (
-                cover, lib_url, r["work_id"], esc(r["title"] or r["work_id"]), badge,
-                esc("; ".join(r["authors"])), esc(r["publish_info"]), action))
+            "<tr><td class='hide-sm'>%s</td><td data-v='%s'><a href='%s/detail/%d' "
+            "target='_blank' rel='noopener'>%s</a>%s<div class='mut'>%s</div></td>"
+            "<td class='hide-sm' data-v='%s'>%s</td>%s<td>%s</td></tr>" % (
+                cover, esc(r["title"]), lib_url, r["work_id"],
+                esc(r["title"] or r["work_id"]), badge, esc(r["publish_info"]),
+                esc(authors), esc(authors), rating_cell(svc, t, r["palm_id"]), action))
     if rows:
-        table = "<p class='mut'>%s</p><table>%s</table>" % (
-            esc(t("search.results_" + res["kind"], n=res["total"])), "".join(rows))
+        table = ("<p class='mut'>%s</p><table class='sortable' id='search' %s><thead><tr>"
+                 "<th class='hide-sm'></th>%s%s%s<th></th></tr></thead><tbody>%s</tbody>"
+                 "</table>%s" % (
+                     esc(t("search.results_" + res["kind"], n=res["total"])), rating_attrs(t),
+                     sort_th(t("th.book")), sort_th(t("th.author"), cls="hide-sm"),
+                     sort_th(t("th.rating"), "num", first="desc"), "".join(rows), TABLE_JS))
     else:
         table = "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("search.none")))
     if res["pages"] > 1:
@@ -746,18 +847,23 @@ def render_index(svc, t):
         src = b.get("cover") or b.get("base_image_url") or ""
         cover = ("<img src='%s' alt='' loading='lazy' class='cover'>" % esc(src)
                  if src.startswith("https://") else "")
+        title = b.get("title") or b.get("palm_id") or ""
         rows.append(
-            "<tr><td><div class='bk'>%s<div>%s<div class='mut'>%s</div></div></div></td>"
-            "<td class='hide-sm'>%s</td>"
-            "<td><span class='st st-%s'>%s%s</span></td><td class='hide-sm mut'>%s</td></tr>" % (
-                cover, esc(b.get("title", b.get("palm_id"))), esc(app.bookAuthors(b)),
-                fmt_date(t, b.get("end_time", "")), esc(st),
-                icon(st) if st in STATUSES else "", esc(label),
+            "<tr><td data-v='%s'><div class='bk'>%s<div>%s<div class='mut'>%s</div></div>"
+            "</div></td><td class='hide-sm' data-v='%s'>%s</td>"
+            "<td data-v='%d'><span class='st st-%s'>%s%s</span></td>%s"
+            "<td class='hide-sm mut' data-v='%s'>%s</td></tr>" % (
+                esc(title), cover, esc(title), esc(app.bookAuthors(b)),
+                esc(b.get("end_time") or ""), fmt_date(t, b.get("end_time", "")),
+                STATUSES.index(st) if st in STATUSES else len(STATUSES), esc(st),
+                icon(st) if st in STATUSES else "", esc(label), rating_cell(svc, t, webId(b)),
+                esc(b.get("neknihy", {}).get("filename", "")),
                 esc(b.get("neknihy", {}).get("filename", ""))))
-    table = ("<table><tr><th>%s</th><th class='hide-sm'>%s</th><th>%s</th>"
-             "<th class='hide-sm'>%s</th></tr>%s</table>" % (
-                 esc(t("th.book")), esc(t("th.due")), esc(t("th.status")),
-                 esc(t("th.file")), "".join(rows))
+    table = ("<table class='sortable' id='loans' %s><thead><tr>%s%s%s%s%s</tr></thead>"
+             "<tbody>%s</tbody></table>%s" % (
+                 rating_attrs(t), sort_th(t("th.book")), sort_th(t("th.due"), cls="hide-sm"),
+                 sort_th(t("th.status")), sort_th(t("th.rating"), "num", first="desc"),
+                 sort_th(t("th.file"), cls="hide-sm"), "".join(rows), TABLE_JS)
              if rows else "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("empty"))))
     status = []
     if not app.settings.configured():
@@ -886,6 +992,15 @@ def make_handler(svc):
             self.end_headers()
             self.wfile.write(data)
 
+        def _send_json(self, obj):
+            data = json.dumps(obj).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(data)
+
         def _send_static(self, name):
             try:
                 with open(os.path.join(STATIC_DIR, name), "rb") as f:
@@ -964,6 +1079,11 @@ def make_handler(svc):
                     self._send(render_search(svc, t, query[:200], page_no, kind))
                 else:
                     self._redirect("/")
+            elif path == "/ratings":
+                raw = parse_qs(url.query).get("ids", [""])[0]
+                ids = [int(i) for i in raw.split(",") if i.strip().isdigit()][:MAX_IDS]
+                data = svc.ratings.fetch(ids) if ids else {}
+                self._send_json({str(k): v for k, v in data.items()})
             elif path == "/lang":
                 q = parse_qs(url.query)
                 raw = q.get("l", [""])[0]

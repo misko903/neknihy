@@ -38,6 +38,21 @@ def catalogueIds(book):
     return ids
 
 
+def webId(book):
+    """The book's ID on palmknihy.cz (palmknihy.cz/kniha/<id>), or None.
+
+    The cover URL carries it for every loan; older e-books without one
+    use their palm_id.
+    """
+    book = book or {}
+    m = _COVER_ID_RE.search(book.get("cover") or "")
+    if m:
+        return int(m.group(1))
+    if not isAudiobook(book) and book.get("palm_id") is not None:
+        return book["palm_id"]
+    return None
+
+
 def slugify(text):
     """'Třináct záhad' -> 'trinact-zahad' (safe as a file/folder name)."""
     text = unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode()

@@ -10,6 +10,8 @@
   "th.due": "Vrátiť do",
   "th.status": "Stav",
   "th.file": "Súbor",
+  "th.author": "Autor",
+  "th.rating": "Hodnotenie",
   "status.new": "nová",
   "status.pending": "čaká na sprístupnenie",
   "status.ok": "stiahnutá",
@@ -67,5 +69,8 @@
   "await.borrowing": "Požičiavam v katalógu knižnice…",
   "await.waiting": "Čakám, kým sa výpožička objaví v Palmknihách, potom sa hneď stiahne (kontrola každých {s} s).",
   "await.found": "Výpožička je v Palmknihách, sťahujem… (ak ešte nie je sprístupnená, skúsim znova o {s} s).",
-  "search.borrowed_wait": "požičaná, o chvíľu sa stiahne"
+  "search.borrowed_wait": "požičaná, o chvíľu sa stiahne",
+  "rating.value": "{p} %",
+  "rating.count": "Hodnotenia čitateľov: {n}",
+  "rating.none": "Zatiaľ bez hodnotenia"
 }

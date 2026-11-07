@@ -10,6 +10,8 @@
   "th.due": "Due",
   "th.status": "Status",
   "th.file": "File",
+  "th.author": "Author",
+  "th.rating": "Rating",
   "status.new": "new",
   "status.pending": "waiting to become available",
   "status.ok": "downloaded",
@@ -67,5 +69,8 @@
   "await.borrowing": "Borrowing in the library catalogue…",
   "await.waiting": "Waiting for the loan to appear in Palmknihy, then it is downloaded right away (checking every {s} s).",
   "await.found": "The loan is in Palmknihy, downloading… (if it is not available yet, trying again in {s} s).",
-  "search.borrowed_wait": "borrowed, downloading soon"
+  "search.borrowed_wait": "borrowed, downloading soon",
+  "rating.value": "{p}%",
+  "rating.count": "Reader ratings: {n}",
+  "rating.none": "Not rated yet"
 }
