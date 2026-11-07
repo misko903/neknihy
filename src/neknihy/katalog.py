@@ -252,8 +252,9 @@ class KatalogTSK():
 #
 # Searching needs no login. The catalogue renders results as HTML (no JSON
 # API for them), one <div class="result" data-work-id="..."> per work.
-# Harvested Palmknihy e-books carry a link to palmknihy.cz/kniha/<id>, which
-# is the same palm_id Neknihy sees in the Palmknihy loans list.
+# Harvested Palmknihy e-books carry a link to palmknihy.cz/kniha/<id>. That
+# web ID is not always the loan's palm_id; api.catalogueIds() maps a loan to
+# the IDs the catalogue may use.
 
 # Catalogue "area" that holds e-books / audiobooks, per library. Other
 # libraries search the whole collection and filter the results instead.

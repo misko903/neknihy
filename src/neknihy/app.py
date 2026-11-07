@@ -1,4 +1,4 @@
-from neknihy.api import API
+from neknihy.api import API, isAudiobook
 from neknihy.katalog import KatalogTSK
 from neknihy.settings import Settings
 
@@ -7,7 +7,7 @@ import json
 import re
 import subprocess
 from datetime import datetime, timezone
-from shutil import copy
+from shutil import copy, rmtree
 
 # Audiobook files: kept in workdir, but never sent to the e-reader / ingest
 # folder (readers and Calibre cannot use them).
@@ -74,7 +74,7 @@ class App():
         rents = self.api.getListOfRentedBooks()
         for rent in rents:
             if not self.bookExpired(rent):
-                if self.bookIndexByPalmId(rent["palm_id"]) is None:
+                if self.bookIndexByPalmId(rent["palm_id"], rent.get("item_type")) is None:
                     rent["neknihy"] = {"status": "new", "filename": ""}
                     self.books.append(rent)
         self.saveBooks()
@@ -122,9 +122,12 @@ class App():
         if changed:
             self.saveBooks()
 
-    def bookIndexByPalmId(self, id):
+    def bookIndexByPalmId(self, id, item_type=None):
+        """Index of the loan with this palm_id. E-books and audiobooks have
+        separate IDs, so item_type tells them apart (missing = e-book)."""
+        audio = item_type == "audiobook"
         for i in range(len(self.books)):
-            if self.books[i]["palm_id"] == id:
+            if self.books[i]["palm_id"] == id and isAudiobook(self.books[i]) == audio:
                 return i
         return None
 
@@ -147,7 +150,11 @@ class App():
 
     def removeBookFile(self, index):
         if self.bookFileExists(index):
-            os.remove(self.bookFile(index))
+            path = self.bookFile(index)
+            if os.path.isdir(path):  # audiobook: folder of chapters
+                rmtree(path)
+            else:
+                os.remove(path)
 
     def bookDownloaded(self, index):
         book = self.book(index)
@@ -160,9 +167,10 @@ class App():
         return False
 
     def bookIsAudio(self, index):
-        """True if the downloaded file of the loan is an audiobook."""
+        """True if the loan is an audiobook (or its file is an audio file)."""
         book = self.book(index)
-        return bool(book) and isAudioFile(book.get("neknihy", {}).get("filename"))
+        return bool(book) and (isAudiobook(book) or
+                               isAudioFile(book.get("neknihy", {}).get("filename")))
 
     def bookAuthors(self, book):
         authors = []
