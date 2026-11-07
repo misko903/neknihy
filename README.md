@@ -73,6 +73,7 @@ podobě, stejně jako u desktopové verze). Webové rozhraní chraňte heslem
 | `NEKNIHY_READERDIR` | – | volitelná složka pro synchronizaci |
 | `NEKNIHY_INTERVAL` | `21600` | počáteční interval v sekundách, `0` = vypnuto |
 | `NEKNIHY_AUTO_RETURN` | `1` | mazat soubory prošlých výpůjček |
+| `NEKNIHY_INGEST` | `0` | `1` = složka pro synchronizaci je ingest složka Calibre-Web Automated / NextGen; každá kniha se do ní zkopíruje jen jednou |
 | `NEKNIHY_CONVERT` | `0` | převod na .mobi (vyžaduje Calibre, v obrazu není) |
 | `NEKNIHY_DEBUG` | `0` | výpis HTTP komunikace |
 | `NEKNIHY_TSK_USERNAME` | – | počáteční přihlášení do katalogu knihovny (katalog.tsk.sk) |

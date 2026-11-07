@@ -13,6 +13,9 @@ without a GUI and without a config file:
     NEKNIHY_CONVERTOR  Path to ebook-convert (default ebook-convert)
     NEKNIHY_INTERVAL   Seconds between runs (default 21600 = 6 h); 0 = run once
     NEKNIHY_AUTO_RETURN "1" = delete files of expired loans (default 1)
+    NEKNIHY_INGEST     "1" = READERDIR is an ingest folder (Calibre-Web
+                       Automated / NextGen): copy every book there only once,
+                       because the ingest process imports and deletes it
     NEKNIHY_DEBUG      "1" = print HTTP debug output
 
 Search the library catalogue (no login): neknihy_cli.py --search QUERY
@@ -28,6 +31,7 @@ import shutil
 import signal
 import sys
 import threading
+from datetime import datetime
 
 from neknihy.app import App
 from neknihy import katalog
@@ -70,9 +74,57 @@ def build_app(args):
     return app
 
 
-def run_once(app, auto_return=None):
+def sync_ingest(app):
+    """Copy each downloaded book into the ingest folder exactly once.
+
+    Calibre-Web Automated / NextGen import files from the ingest folder and
+    delete them, so the normal sync (copy if missing) would import the same
+    book again on every run. Copied books are marked in .data instead.
+    The file is written directly (no temporary name) so the ingest watcher
+    sees only the finished file (close_write).
+    """
+    dst_dir = app.settings.readerdir
+    if not dst_dir or not os.path.isdir(dst_dir):
+        log.warning("Ingest folder not set or not found: %s", dst_dir)
+        return None
+    added = []
+    for i, book in enumerate(app.books):
+        nk = book.get("neknihy", {})
+        if nk.get("status") != "ok" or nk.get("ingested"):
+            continue
+        src = app.bookFile(i)
+        if not src or not os.path.exists(src):
+            continue
+        shutil.copyfile(src, os.path.join(dst_dir, nk["filename"]))
+        nk["ingested"] = datetime.now().isoformat(timespec="seconds")
+        added.append(nk["filename"])
+    app.saveBooks()
+    return added
+
+
+def sync(app, ingest):
+    if not app.settings.readerdir:
+        return
+    if ingest:
+        added = sync_ingest(app)
+        if added is not None:
+            log.info("Ingest to %s: added %d%s", app.settings.readerdir, len(added),
+                     (" (" + ", ".join(added) + ")") if added else "")
+        return
+    result = app.syncReader()
+    if result is None:
+        log.warning("Sync folder not found: %s", app.settings.readerdir)
+    else:
+        log.info("Sync to %s: added %d, removed %d, total %d",
+                 app.settings.readerdir, len(result["added"]),
+                 len(result["removed"]), result["total"])
+
+
+def run_once(app, auto_return=None, ingest=None):
     if auto_return is None:
         auto_return = env("NEKNIHY_AUTO_RETURN", "1") == "1"
+    if ingest is None:
+        ingest = env("NEKNIHY_INGEST", "0") == "1"
     log.info("Refreshing list of rented books")
     app.refreshRents()
     active = [b for b in app.books if b["neknihy"]["status"] != "expired"]
@@ -98,12 +150,7 @@ def run_once(app, auto_return=None):
             log.info("Removing expired loans: %s", ", ".join(f for f in expired if f))
         app.returnBooks()
 
-    if app.settings.readerdir:
-        result = app.syncReader()
-        if result is not None:
-            log.info("Sync to %s: added %d, removed %d, total %d",
-                     app.settings.readerdir, len(result["added"]),
-                     len(result["removed"]), result["total"])
+    sync(app, ingest)
 
 
 def print_search(query):

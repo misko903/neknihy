@@ -54,5 +54,6 @@
   "search.loaned": "borrowed",
   "search.error": "Catalogue search failed: {error}",
   "log.title": "Log",
-  "set.lang_auto": "Automatic (browser language)"
+  "set.lang_auto": "Automatic (browser language)",
+  "set.ingest": "Sync folder is a Calibre-Web ingest folder (copy each book only once)"
 }

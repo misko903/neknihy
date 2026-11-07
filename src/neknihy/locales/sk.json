@@ -54,5 +54,6 @@
   "search.loaned": "požičaná",
   "search.error": "Vyhľadávanie v katalógu zlyhalo: {error}",
   "log.title": "Záznam",
-  "set.lang_auto": "Automaticky (podľa prehliadača)"
+  "set.lang_auto": "Automaticky (podľa prehliadača)",
+  "set.ingest": "Priečinok na synchronizáciu je ingest priečinok Calibre-Web (každú knihu skopírovať iba raz)"
 }

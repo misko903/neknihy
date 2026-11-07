@@ -54,5 +54,6 @@
   "search.loaned": "ausgeliehen",
   "search.error": "Katalogsuche fehlgeschlagen: {error}",
   "log.title": "Protokoll",
-  "set.lang_auto": "Automatisch (Browsersprache)"
+  "set.lang_auto": "Automatisch (Browsersprache)",
+  "set.ingest": "Sync-Ordner ist ein Calibre-Web-Ingest-Ordner (jedes Buch nur einmal kopieren)"
 }

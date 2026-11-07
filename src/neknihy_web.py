@@ -38,7 +38,7 @@ from neknihy import i18n
 from neknihy.app import App
 from neknihy import katalog
 from neknihy.katalog import parse_work_id
-from neknihy_cli import env, run_once
+from neknihy_cli import env, run_once, sync
 
 log = logging.getLogger("neknihy")
 
@@ -90,6 +90,9 @@ class Service:
             self._save_web()
         except Exception as e:
             log.warning("Cannot read %s: %s", WEB_FILE, e)
+        if "ingest" not in self.web:
+            self.web["ingest"] = env("NEKNIHY_INGEST", "0") == "1"
+            self._save_web()
 
     def _save_web(self):
         with open(WEB_FILE, "w") as f:
@@ -149,6 +152,7 @@ class Service:
                 interval = self.web["interval"]
             self.web["interval"] = interval
             self.web["auto_return"] = bool(form.get("auto_return"))
+            self.web["ingest"] = bool(form.get("ingest"))
             self._save_web()
             self._ensure_dirs()
         log.info("Settings saved")
@@ -167,7 +171,7 @@ class Service:
             app = self.app
             app.api.logout()  # always start with a fresh login
             if name == "run":
-                run_once(app, self.web["auto_return"])
+                run_once(app, self.web["auto_return"], self.web.get("ingest", False))
             elif name == "refresh":
                 app.refreshRents()
                 log.info("Loans refreshed: %d", len(app.books))
@@ -178,11 +182,9 @@ class Service:
                 app.returnBooks()
                 log.info("Expired loans removed")
             elif name == "sync":
-                r = app.syncReader()
-                if r is None:
-                    log.warning("Sync folder not set or not found")
-                else:
-                    log.info("Sync: added %d, removed %d", len(r["added"]), len(r["removed"]))
+                if not app.settings.readerdir:
+                    log.warning("Sync folder not set")
+                sync(app, self.web.get("ingest", False))
             self.last_error = None
         except Exception as e:
             log.error("%s failed: %s", name, e)
@@ -204,7 +206,7 @@ class Service:
             app.borrowFromKatalog(work_id)
             if app.settings.configured():
                 app.api.logout()
-                run_once(app, self.web["auto_return"])
+                run_once(app, self.web["auto_return"], self.web.get("ingest", False))
             self.last_error = None
         except Exception as e:
             log.error("borrow failed: %s", e)
@@ -640,6 +642,8 @@ def render_settings(svc, t, lang_choice="auto"):
 <label>%s</label><input type='text' name='workdir' value='%s'>
 <label>%s</label>
 <input type='text' name='readerdir' value='%s'>
+<div class='chk'><input type='checkbox' name='ingest' id='ig'%s>
+<label for='ig' style='margin:0'>%s</label></div>
 <label>%s</label>
 <input type='number' min='0' name='interval_h' value='%d'>
 <div class='chk'><input type='checkbox' name='auto_return' id='ar'%s>
@@ -657,6 +661,7 @@ def render_settings(svc, t, lang_choice="auto"):
         esc(t("set.password")), esc(t("set.password_keep")) if s.password else "",
         esc(t("set.workdir")), esc(s.workdir),
         esc(t("set.readerdir")), esc(s.readerdir),
+        " checked" if svc.web.get("ingest") else "", esc(t("set.ingest")),
         esc(t("set.interval")), svc.web["interval"] // 3600,
         " checked" if svc.web["auto_return"] else "", esc(t("set.auto_return")),
         " checked" if s.convert == "1" else "", esc(t("set.convert")),
