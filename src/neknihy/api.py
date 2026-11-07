@@ -73,17 +73,36 @@ class API():
                                response.text)
         return json.loads(response.text)
 
+    # Content types of e-books and audiobooks (MP3 / M4B, often zipped)
+    CONTENT_TYPES = {
+        "/epub": ".epub",
+        "/pdf": ".pdf",
+        "/zip": ".zip",
+        "/x-zip": ".zip",
+        "audio/mpeg": ".mp3",
+        "audio/mp3": ".mp3",
+        "audio/x-m4b": ".m4b",
+        "audio/mp4": ".m4a",
+        "audio/x-m4a": ".m4a",
+    }
+
     def fileExtension(self, response):
-        ftype = response.headers["Content-Type"]
+        ftype = (response.headers.get("Content-Type") or "").lower()
+        # e-books: keep the long-standing behaviour
         if "/epub" in ftype:
             return ".epub"
         if "/pdf" in ftype:
             return ".pdf"
 
-        fdisposition = response.headers["Content-Disposition"]
-        match = re.search('filename="[^"]+(\\.[^".]+)"', fdisposition)
+        # the file name is the most precise (e.g. .m4b vs .m4a)
+        fdisposition = response.headers.get("Content-Disposition") or ""
+        match = re.search('filename="?[^";]+(\\.[^";.]+)"?', fdisposition)
         if match:
             return match.group(1).lower()
+
+        for key, ext in self.CONTENT_TYPES.items():
+            if key in ftype:
+                return ext
 
         return ".unknown"
 

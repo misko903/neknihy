@@ -352,6 +352,8 @@ _ICON_PATHS = {
     "new": "<path d='M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z'/>",
     "pending": "<circle cx='12' cy='12' r='9'/><path d='M12 7v5l3 2'/>",
     "ok": "<circle cx='12' cy='12' r='9'/><path d='m8 12 3 3 5-6'/>",
+    "audio": "<path d='M4 14v-2a8 8 0 0 1 16 0v2'/><rect x='3' y='14' width='4' height='6' rx='1'/>"
+             "<rect x='17' y='14' width='4' height='6' rx='1'/>",
     "expired": "<circle cx='12' cy='12' r='9'/><path d='m9 9 6 6'/><path d='m15 9-6 6'/>",
     "info": "<circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><path d='M12 8h0'/>",
     "warn": "<path d='M12 3 2 20h20z'/><path d='M12 10v4'/><path d='M12 17h0'/>",
@@ -527,6 +529,19 @@ margin:0 auto 8px}
 width:44px;
 border-radius:4px;
 display:block}
+.bk{
+display:flex;
+gap:10px;
+align-items:flex-start}
+.bk .cover{
+flex:none}
+.tag{
+margin-left:6px;
+font-size:12px;
+color:var(--acc);
+vertical-align:middle}
+.actions select{
+width:auto}
 input[type=search]{
 padding:8px;
 border:1px solid var(--line);
@@ -537,6 +552,29 @@ font:inherit}
 summary{
 cursor:pointer;
 margin-top:10px}
+details.log>summary{
+margin:0;
+list-style:none;
+display:flex;
+align-items:center;
+gap:6px}
+details.log>summary::-webkit-details-marker{
+display:none}
+details.log>summary::after{
+content:'';
+width:7px;
+height:7px;
+margin-left:4px;
+border-right:2px solid var(--mut);
+border-bottom:2px solid var(--mut);
+transform:rotate(-45deg);
+transition:transform .15s}
+details.log[open]>summary::after{
+transform:rotate(45deg)}
+details.log>summary h2{
+margin:0}
+details.log[open]>summary{
+margin-bottom:8px}
 td form{
 margin:0}
 .st-new{
@@ -580,13 +618,16 @@ def fmt_date(t, value):
         return esc(value)
 
 
-def search_form(t, query=""):
+def search_form(t, query="", kind="ebook"):
+    options = "".join("<option value='%s'%s>%s</option>" % (
+        k, " selected" if k == kind else "", esc(t("kind." + k))) for k in katalog.KINDS)
     return ("<form method='get' action='/search' class='actions'>"
             "<input type='search' name='q' value='%s' required style='flex:1;min-width:200px' "
             "placeholder='%s' aria-label='%s'>"
+            "<select name='kind' aria-label='%s'>%s</select>"
             "<button class='primary'>%s<span>%s</span></button></form>" % (
                 esc(query), esc(t("search.placeholder")), esc(t("search.placeholder")),
-                icon("search"), esc(t("btn.search"))))
+                esc(t("kind.label")), options, icon("search"), esc(t("btn.search"))))
 
 
 def not_configured_hint(t):
@@ -612,13 +653,14 @@ def render_borrow(svc, t):
         icon("search"), esc(t("borrow.title")), "".join(parts))
 
 
-def render_search(svc, t, query, page_no):
+def render_search(svc, t, query, page_no, kind="ebook"):
     app = svc.app
     s = app.settings
     body = ["<div class='card'><h2>%s%s</h2>%s</div>" % (
-        icon("search"), esc(t("borrow.title")), search_form(t, query))]
+        icon("search"), esc(t("borrow.title")), search_form(t, query, kind))]
     try:
-        res = katalog.search(query, library=s.tsk_library or "vkmr", page=page_no)
+        res = katalog.search(query, library=s.tsk_library or "vkmr", page=page_no,
+                             kind=kind)
     except Exception as e:
         log.error("Catalogue search failed: %s", e)
         body.append("<div class='card'><p class='st st-pending'>%s%s</p></div>" % (
@@ -650,27 +692,38 @@ def render_search(svc, t, query, page_no):
             action = ""
         cover = ("<img src='%s' alt='' loading='lazy' class='cover'>" % esc(r["cover"])
                  if r["cover"] else "")
+        badge = ("<span class='st tag'>%s%s</span>" % (icon("audio"),
+                                                              esc(t("kind.audio_tag")))
+                 if r.get("audiobook") else "")
         rows.append(
             "<tr><td class='hide-sm'>%s</td><td><a href='%s/detail/%d' target='_blank' "
-            "rel='noopener'>%s</a><div class='mut'>%s</div><div class='mut'>%s</div></td>"
+            "rel='noopener'>%s</a>%s<div class='mut'>%s</div><div class='mut'>%s</div></td>"
             "<td>%s</td></tr>" % (
-                cover, lib_url, r["work_id"], esc(r["title"] or r["work_id"]),
+                cover, lib_url, r["work_id"], esc(r["title"] or r["work_id"]), badge,
                 esc("; ".join(r["authors"])), esc(r["publish_info"]), action))
     if rows:
         table = "<p class='mut'>%s</p><table>%s</table>" % (
-            esc(t("search.results", n=res["total"])), "".join(rows))
+            esc(t("search.results_" + res["kind"], n=res["total"])), "".join(rows))
     else:
         table = "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("search.none")))
     if res["pages"] > 1:
         links = []
         for n in range(1, res["pages"] + 1):
             links.append("<b>%d</b>" % n if n == page_no else
-                         "<a href='/search?q=%s&amp;page=%d'>%d</a>" % (quote(query), n, n))
+                         "<a href='/search?q=%s&amp;kind=%s&amp;page=%d'>%d</a>"
+                         % (quote(query), quote(res["kind"]), n, n))
         table += "<p class='actions'>%s</p>" % " ".join(links)
     if not can_borrow:
         table += not_configured_hint(t)
     body.append("<div class='card'>%s</div>" % table)
     return page(t, "%s – Neknihy" % t("btn.search"), "".join(body), "/")
+
+
+# Remember whether the log is collapsed (the page reloads itself while busy).
+LOG_TOGGLE_JS = """<script>(function(){var d=document.getElementById('log');if(!d)return;
+try{if(localStorage.getItem('neknihy.log')==='closed')d.open=false;}catch(e){}
+d.addEventListener('toggle',function(){try{localStorage.setItem('neknihy.log',
+d.open?'open':'closed');}catch(e){}});})();</script>"""
 
 
 def render_index(svc, t):
@@ -679,10 +732,14 @@ def render_index(svc, t):
     for b in app.books:
         st = b.get("neknihy", {}).get("status", "")
         label = t("status." + st) if st in STATUSES else st
+        src = b.get("cover") or b.get("base_image_url") or ""
+        cover = ("<img src='%s' alt='' loading='lazy' class='cover'>" % esc(src)
+                 if src.startswith("https://") else "")
         rows.append(
-            "<tr><td>%s<div class='mut'>%s</div></td><td class='hide-sm'>%s</td>"
+            "<tr><td><div class='bk'>%s<div>%s<div class='mut'>%s</div></div></div></td>"
+            "<td class='hide-sm'>%s</td>"
             "<td><span class='st st-%s'>%s%s</span></td><td class='hide-sm mut'>%s</td></tr>" % (
-                esc(b.get("title", b.get("palm_id"))), esc(app.bookAuthors(b)),
+                cover, esc(b.get("title", b.get("palm_id"))), esc(app.bookAuthors(b)),
                 fmt_date(t, b.get("end_time", "")), esc(st),
                 icon(st) if st in STATUSES else "", esc(label),
                 esc(b.get("neknihy", {}).get("filename", ""))))
@@ -721,10 +778,11 @@ def render_index(svc, t):
         for aw in list(svc.awaiting))
     body = ("%s<div class='card'><form method='post' action='/action' class='actions'>%s</form>"
             "<p class='mut'>%s</p></div>%s<div class='card'>%s</div>"
-            "<div class='card'><h2>%s%s</h2><pre>%s</pre></div>" % (
+            "<details class='card log' id='log' open><summary><h2>%s%s</h2></summary>"
+            "<pre>%s</pre></details>%s" % (
                 awaiting, buttons, "<br>".join(status), render_borrow(svc, t), table,
                 icon("log"),
-                esc(t("log.title")), esc("\n".join(reversed(svc.log.lines)))))
+                esc(t("log.title")), esc("\n".join(reversed(svc.log.lines))), LOG_TOGGLE_JS))
     busy = svc.running or svc.awaiting
     return page(t, "Neknihy", body, "/", refresh=PAGE_REFRESH if busy else None)
 
@@ -888,8 +946,11 @@ def make_handler(svc):
                     page_no = max(1, int(q.get("page", ["1"])[0]))
                 except ValueError:
                     page_no = 1
+                kind = q.get("kind", ["ebook"])[0]
+                if kind not in katalog.KINDS:
+                    kind = "ebook"
                 if query:
-                    self._send(render_search(svc, t, query[:200], page_no))
+                    self._send(render_search(svc, t, query[:200], page_no, kind))
                 else:
                     self._redirect("/")
             elif path == "/lang":

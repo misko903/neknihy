@@ -1,7 +1,7 @@
 """Client for the TSK online library catalogue (katalog.tsk.sk).
 
 Used by libraries of the Trenčín self-governing region (e.g. VKMR Trenčín)
-to lend Palmknihy e-books. After a successful loan the book shows up in the
+to lend Palmknihy e-books and audiobooks. After a successful loan the book shows up in the
 Palmknihy account and Neknihy downloads it as usual.
 
 The catalogue is a Spring application: login and loans are plain HTML form
@@ -210,7 +210,8 @@ class KatalogTSK():
         return self._get_json("jsapi/work", params={"workId": work_id, "order": order})
 
     def borrow(self, work_id, provider_id=-1, retry=True):
-        """Borrow an e-book. Returns the confirmation page URL.
+        """Borrow an e-book or audiobook (same e-loan form). Returns the
+        confirmation page URL.
 
         If the catalogue sends us back to its login page, log in again and
         retry once. If it still wants a login right after a successful one,
@@ -254,17 +255,22 @@ class KatalogTSK():
 # Harvested Palmknihy e-books carry a link to palmknihy.cz/kniha/<id>, which
 # is the same palm_id Neknihy sees in the Palmknihy loans list.
 
-# Catalogue "area" that holds e-books, per library. Other libraries search
-# the whole collection and keep only results that can be e-borrowed.
+# Catalogue "area" that holds e-books / audiobooks, per library. Other
+# libraries search the whole collection and filter the results instead.
 EBOOK_AREAS = {"vkmr": 701}
+AUDIOBOOK_AREAS = {"vkmr": 702}
 AREA_ALL = -1
+KINDS = ("ebook", "audiobook", "all")
 PAGE_SIZE = 100  # the catalogue accepts this; most searches fit one page
 
 _VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link",
               "meta", "source", "track", "wbr"}
 _FIELDS = {"Title": "title", "Authors": "authors", "Publish_info": "publish_info",
            "Keywords": "keywords"}
-_TOTAL_RE = re.compile(r"z\s+celkom\s+(\d+)|of\s+(\d+)|z\s+celkem\s+(\d+)", re.IGNORECASE)
+# "1 - 20 z celkom 1 800." - thousands are separated by a (no-break) space
+_NUM = r"(\d+(?:[ .,]\d{3})*)"
+_TOTAL_RE = re.compile(r"z\s+celkom\s+%s|of\s+%s|z\s+celkem\s+%s" % (_NUM, _NUM, _NUM),
+                       re.IGNORECASE)
 _PALM_RE = re.compile(r"palmknihy\.cz/kniha/(\d+)")
 
 
@@ -359,8 +365,9 @@ class _SearchParser(HTMLParser):
                 self._info_depth = None
                 m = _TOTAL_RE.search(_clean(" ".join(self._info)))
                 if m:
-                    self.total = int(next(g for g in m.groups() if g))
+                    self.total = int(re.sub(r"\D", "", next(g for g in m.groups() if g)))
             if self._cur is not None and depth == self._cur_depth:
+                self._cur["audiobook"] = is_audiobook(self._cur)
                 self.results.append(self._cur)
                 self._cur = None
             if self._stack.pop() == tag:
@@ -386,6 +393,12 @@ class _SearchParser(HTMLParser):
             self._item[0].append(data)
 
 
+def is_audiobook(result):
+    """True for an audiobook ("audioknihy" work type or keyword)."""
+    texts = [result.get("work_type") or ""] + list(result.get("keywords") or [])
+    return any("audio" in t.lower() and "vizu" not in t.lower() for t in texts)
+
+
 def parse_search(html):
     """Parse a search result page: {"total": int, "results": [dict, ...]}."""
     p = _SearchParser()
@@ -396,15 +409,26 @@ def parse_search(html):
 
 
 def search(query, library="vkmr", ebooks_only=True, page=1, page_size=PAGE_SIZE,
-           session=None, base_url=BASE_URL, timeout=30):
+           session=None, base_url=BASE_URL, timeout=30, kind="ebook"):
     """Search the catalogue; no login needed.
 
-    Returns {"query", "page", "pages", "total", "results"}. Each result has
-    work_id, title, authors, publish_info, isbn, work_type, ebook (can be
-    e-borrowed), source, palm_id (Palmknihy book ID or None), cover, keywords.
+    ``kind`` picks what to look for: "ebook", "audiobook" or "all" (both;
+    anything that can be e-borrowed). ``ebooks_only=False`` searches the
+    whole collection, printed books included.
+
+    Returns {"query", "kind", "page", "pages", "total", "results"}. Each
+    result has work_id, title, authors, publish_info, isbn, work_type, ebook
+    (can be e-borrowed, audiobooks included), audiobook, source, palm_id
+    (Palmknihy book ID or None), cover, keywords.
     """
     library = library or "vkmr"
-    area = EBOOK_AREAS.get(library, AREA_ALL) if ebooks_only else AREA_ALL
+    kind = kind if kind in KINDS else "ebook"
+    if not ebooks_only or kind == "all":
+        area = AREA_ALL
+    elif kind == "audiobook":
+        area = AUDIOBOOK_AREAS.get(library, AREA_ALL)
+    else:
+        area = EBOOK_AREAS.get(library, AREA_ALL)
     params = {"field": 0, "q": query, "area": area, "allsrc": "on",
               "pageSize": page_size, "page": page}
     own = session is None
@@ -420,8 +444,12 @@ def search(query, library="vkmr", ebooks_only=True, page=1, page_size=PAGE_SIZE,
             s.close()
     data = parse_search(r.text)
     if ebooks_only and area == AREA_ALL:
-        data["results"] = [x for x in data["results"] if x["ebook"]]
-    data.update(query=query, page=page,
+        # the whole collection was searched: keep what fits ``kind``
+        keep = {"ebook": lambda x: x["ebook"] and not x["audiobook"],
+                "audiobook": lambda x: x["ebook"] and x["audiobook"],
+                "all": lambda x: x["ebook"]}[kind]
+        data["results"] = [x for x in data["results"] if keep(x)]
+    data.update(query=query, kind=kind, page=page,
                 pages=max(1, -(-data["total"] // page_size)))
     log.info("Catalogue search '%s': %d of %d", query, len(data["results"]), data["total"])
     return data

@@ -9,6 +9,15 @@ import subprocess
 from datetime import datetime, timezone
 from shutil import copy
 
+# Audiobook files: kept in workdir, but never sent to the e-reader / ingest
+# folder (readers and Calibre cannot use them).
+AUDIO_EXTENSIONS = (".mp3", ".m4a", ".m4b", ".aac", ".ogg", ".opus", ".flac", ".wav",
+                    ".zip")
+
+
+def isAudioFile(filename):
+    return os.path.splitext(filename or "")[1].lower() in AUDIO_EXTENSIONS
+
 
 class App():
     def __init__(self, config=None, debug=False):
@@ -28,7 +37,7 @@ class App():
         self.loadBooks()
 
     def borrowFromKatalog(self, work_id):
-        """Borrow an e-book in the library catalogue (katalog.tsk.sk)."""
+        """Borrow an e-book or audiobook in the library catalogue (katalog.tsk.sk)."""
         s = self.settings
         if not s.katalog_configured():
             raise RuntimeError("Library catalogue login is not set")
@@ -150,6 +159,11 @@ class App():
             return self.bookFileExists(index)
         return False
 
+    def bookIsAudio(self, index):
+        """True if the downloaded file of the loan is an audiobook."""
+        book = self.book(index)
+        return bool(book) and isAudioFile(book.get("neknihy", {}).get("filename"))
+
     def bookAuthors(self, book):
         authors = []
         result = ""
@@ -209,7 +223,7 @@ class App():
         result = {"added": [], "removed": [], "total": 0}
         # add new books
         for i in range(len(self.books)):
-            if self.books[i]["neknihy"]["status"] == "ok":
+            if self.books[i]["neknihy"]["status"] == "ok" and not self.bookIsAudio(i):
                 src = self.bookFile(i)
                 filename = self.books[i]["neknihy"]["filename"]
                 ext = re.search("\\.[^.]+$", filename).group(0)
