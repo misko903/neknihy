@@ -188,3 +188,11 @@ class Search(unittest.TestCase):
         data = katalog.search("poirot", library="other", session=s)
         self.assertEqual(s.get.call_args[1]["params"]["area"], -1)
         self.assertEqual([r["work_id"] for r in data["results"]], [1481396])
+
+    def test_bot_check(self):
+        s = mock.Mock()
+        r = resp(text="<html>check</html>")
+        r.url = "https://katalog.tsk.sk/library/vkmr/i-am-not-a-robot?returnUrl=x"
+        s.get.return_value = r
+        with self.assertRaises(katalog.BotCheckError):
+            katalog.search("dahl", session=s)

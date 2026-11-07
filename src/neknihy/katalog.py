@@ -36,6 +36,24 @@ class BorrowError(KatalogError):
     """The loan was not accepted."""
 
 
+class BotCheckError(KatalogError):
+    """The catalogue answered with its anti-bot check instead of content."""
+
+
+BOT_CHECK_MARKERS = ("i-am-not-a-robot", "/jsapi/pow/token")
+
+
+def is_bot_check(response):
+    url = getattr(response, "url", "") or ""
+    loc = (getattr(response, "headers", None) or {}).get("Location", "") or ""
+    return any(m in url or m in loc for m in BOT_CHECK_MARKERS)
+
+
+BOT_CHECK_MSG = ("The library catalogue asked for a browser check (anti-bot page), "
+                 "so Neknihy cannot use it without a browser. Search and borrow "
+                 "in the catalogue in your web browser.")
+
+
 def parse_work_id(text):
     """Return the work ID from a catalogue link or a plain number, else None.
 
@@ -92,6 +110,8 @@ class KatalogTSK():
         session will do.
         """
         r = self.session.get(self._url(path), timeout=self.timeout)
+        if is_bot_check(r):
+            raise BotCheckError(BOT_CHECK_MSG)
         r.raise_for_status()
         parser = _CsrfParser()
         parser.feed(r.text)
@@ -343,6 +363,8 @@ def search(query, library="vkmr", ebooks_only=True, page=1, page_size=PAGE_SIZE,
     try:
         r = s.get("%s/library/%s/search" % (base_url.rstrip("/"), library),
                   params=params, timeout=timeout)
+        if is_bot_check(r):
+            raise BotCheckError(BOT_CHECK_MSG)
         r.raise_for_status()
     finally:
         if own:
