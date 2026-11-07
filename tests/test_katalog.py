@@ -91,6 +91,26 @@ class Client(unittest.TestCase):
         with self.assertRaises(katalog.BorrowError):
             self.k.borrow(1439847)
 
+    def test_borrow_relogin_once(self):
+        self.k.logged_in = True
+        self.k.session.get.return_value = resp(text=HOME)
+        ok = "https://katalog.tsk.sk/library/vkmr/eborrow-success/1439847/-1"
+        self.k.session.post.side_effect = [
+            resp(302, location="https://katalog.tsk.sk/library/vkmr/login"),  # expired
+            resp(302, location="https://katalog.tsk.sk/library/vkmr"),        # login
+            resp(302, location=ok),                                           # retry
+        ]
+        self.assertEqual(self.k.borrow(1439847), ok)
+
+    def test_borrow_login_not_accepted(self):
+        self.k.session.get.return_value = resp(text=HOME)
+        login = resp(302, location="https://katalog.tsk.sk/library/vkmr")
+        again = resp(302, location="https://katalog.tsk.sk/library/vkmr/login")
+        self.k.session.post.side_effect = [login, again, login, again]
+        with self.assertRaises(katalog.LoginError):
+            self.k.borrow(1439847)
+        self.assertEqual(self.k.session.post.call_count, 4)
+
     def test_json_relogin_on_expired_session(self):
         self.k.logged_in = True
         data = resp(200)

@@ -166,6 +166,9 @@ class KatalogTSK():
             timeout=self.timeout,
         )
         loc = r.headers.get("Location", "")
+        log.info("Catalogue login answered %d -> %s", r.status_code, loc or "(no redirect)")
+        if is_bot_check(r):
+            raise BotCheckError(BOT_CHECK_MSG)
         if r.status_code not in REDIRECT_CODES:
             raise LoginError("Catalogue login: unexpected response %d" % r.status_code)
         if "login" in loc.lower() or "error" in loc.lower():
@@ -202,8 +205,13 @@ class KatalogTSK():
         """Work detail. 'RECOMENDEND' is the catalogue's own spelling, keep it."""
         return self._get_json("jsapi/work", params={"workId": work_id, "order": order})
 
-    def borrow(self, work_id, provider_id=-1):
-        """Borrow an e-book. Returns the confirmation page URL."""
+    def borrow(self, work_id, provider_id=-1, retry=True):
+        """Borrow an e-book. Returns the confirmation page URL.
+
+        If the catalogue sends us back to its login page, log in again and
+        retry once. If it still wants a login right after a successful one,
+        the login was not really accepted.
+        """
         self._ensure_login()
         token = self._get_csrf("/")
         r = self.session.post(
@@ -221,9 +229,16 @@ class KatalogTSK():
         if r.status_code in REDIRECT_CODES and "eborrow-success" in loc:
             log.info("Borrowed from catalogue: workId=%s", work_id)
             return loc
+        if is_bot_check(r):
+            raise BotCheckError(BOT_CHECK_MSG)
         if "login" in loc.lower():
             self.logged_in = False
-            raise BorrowError("Catalogue session expired, try again")
+            if retry:
+                log.warning("Catalogue asked for login during loan (%s), logging in again", loc)
+                return self.borrow(work_id, provider_id, retry=False)
+            raise LoginError("The catalogue keeps asking for login right after logging in "
+                             "(%s). Check the catalogue user name/password in Settings and "
+                             "try logging in at katalog.tsk.sk in a browser." % loc)
         raise BorrowError("Loan of workId=%s failed: %d -> %s"
                           % (work_id, r.status_code, loc or "(no redirect)"))
 
