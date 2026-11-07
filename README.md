@@ -65,7 +65,7 @@ podobě, stejně jako u desktopové verze). Webové rozhraní chraňte heslem
 |---|---|---|
 | `NEKNIHY_WEB_PORT` | `8478` | port webového rozhraní |
 | `NEKNIHY_WEB_PASSWORD` | – | heslo pro webové rozhraní (libovolné jméno) |
-| `NEKNIHY_LANG` | – | výchozí jazyk webu (`cs`, `sk`, `en`, `de`); jinak podle prohlížeče, záložně čeština |
+| `NEKNIHY_LANG` | – | výchozí jazyk webu (`cs`, `sk`, `en`, `de`); jinak podle prohlížeče, záložně čeština. Každý prohlížeč si jazyk může změnit v Nastavení (včetně volby „Automaticky (podle prohlížeče)“) |
 | `NEKNIHY_CONFIG_DIR` | `/config` | složka pro nastavení |
 | `NEKNIHY_EMAIL` | – | počáteční e-mail Palmknihy |
 | `NEKNIHY_PASSWORD` | – | počáteční heslo Palmknihy |

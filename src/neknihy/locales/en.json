@@ -53,5 +53,6 @@
   "search.none": "Nothing found.",
   "search.loaned": "borrowed",
   "search.error": "Catalogue search failed: {error}",
-  "log.title": "Log"
+  "log.title": "Log",
+  "set.lang_auto": "Automatic (browser language)"
 }

@@ -53,5 +53,6 @@
   "search.none": "Nic nenalezeno.",
   "search.loaned": "vypůjčená",
   "search.error": "Hledání v katalogu selhalo: {error}",
-  "log.title": "Záznam"
+  "log.title": "Záznam",
+  "set.lang_auto": "Automaticky (podle prohlížeče)"
 }
