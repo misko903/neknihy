@@ -107,3 +107,84 @@ class Client(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+RESULT = """
+<div class="pagination-info">Zobrazené záznamy 1 - 2 z celkom 2.</div>
+<div class="works">
+<div data-isbn="[9788024293097]" data-work-id="1481396" class="result harvested">
+  <div class="cover">
+    <a class="thumbnail" data-large-cover="https://core.palmknihy.cz/api/books/390655/cover/400"
+       href="/library/vkmr/detail/1481396?search=x&amp;si=1"><img src="https://x/c.jpg"></a>
+    <span class="work-type tt icon" title="" data-original-title="E-knihy - "></span>
+  </div>
+  <div class="showitems">
+    <div class="Title"><span class="showitem"><span class="showitem-content"><a href="/d">
+      <span class="showitem"><span class="showitem-content"><span class="highlight">Poirot</span>
+      - Největší detektiv na světě</span></span></a></span></span><br></div>
+    <div class="Authors"><span class="showitem"><span class="showitem-content">Aldridge, Mark</span>
+      </span><br></div>
+    <div class="Publish_info"><span class="showitem"><span class="showitem-label">Vydavateľské
+      údaje: </span><span class="showitem-content">Euromedia 2023 </span></span><br></div>
+    <div class="Keywords"><span class="showitem"><span class="showitem-label">Kľúčové slová:
+      </span><span class="showitem-content">E-knihy</span></span><br><span class="showitem">
+      <span class="showitem-content"><a href="/a">Povídky</a></span></span><span class="showitem">
+      <span class="showitem-content">E-knihy</span></span></div>
+  </div>
+  <div class="work-availability btn-group" data-original-title="Dostupné v databázi: Palmknihy">
+    <a class="btn" href=""><span>Zdroj:</span><span>Palmknihy</span></a>
+    <ul><li><a href="https://www.palmknihy.cz/kniha/390655">kniha</a></li></ul>
+  </div>
+  <a class="btn" href="/library/vkmr/eborrow/1481396?search=x&amp;si=1">Požičať E-knihu</a>
+  <form><input type="hidden" name="_csrf" value="T"></form>
+</div>
+<div data-work-id="42" class="result">
+  <div class="showitems"><div class="Title"><span class="showitem-content">Tlačená kniha</span>
+  </div><div class="Authors"><span class="showitem-content">A, B</span>
+  <span class="showitem-content">C, D</span></div></div>
+</div>
+</div>
+"""
+
+
+class Search(unittest.TestCase):
+    def test_parse(self):
+        data = katalog.parse_search(RESULT)
+        self.assertEqual(data["total"], 2)
+        first, second = data["results"]
+        self.assertEqual(first["work_id"], 1481396)
+        self.assertEqual(first["title"], "Poirot - Největší detektiv na světě")
+        self.assertEqual(first["authors"], ["Aldridge, Mark"])
+        self.assertEqual(first["publish_info"], "Euromedia 2023")
+        self.assertEqual(first["isbn"], ["9788024293097"])
+        self.assertEqual(first["work_type"], "E-knihy")
+        self.assertEqual(first["keywords"], ["E-knihy", "Povídky"])
+        self.assertTrue(first["ebook"])
+        self.assertEqual(first["source"], "Palmknihy")
+        self.assertEqual(first["palm_id"], 390655)
+        self.assertEqual(first["cover"],
+                         "https://core.palmknihy.cz/api/books/390655/cover/400")
+        self.assertEqual(second["work_id"], 42)
+        self.assertEqual(second["title"], "Tlačená kniha")
+        self.assertEqual(second["authors"], ["A, B", "C, D"])
+        self.assertFalse(second["ebook"])
+        self.assertIsNone(second["palm_id"])
+
+    def test_search_request(self):
+        s = mock.Mock()
+        s.get.return_value = resp(text=RESULT)
+        data = katalog.search("poirot", library="vkmr", session=s)
+        _, kwargs = s.get.call_args
+        self.assertEqual(s.get.call_args[0][0], "https://katalog.tsk.sk/library/vkmr/search")
+        self.assertEqual(kwargs["params"]["area"], 701)
+        self.assertEqual(kwargs["params"]["q"], "poirot")
+        self.assertEqual(kwargs["params"]["pageSize"], 100)
+        self.assertEqual(data["pages"], 1)
+        self.assertEqual(len(data["results"]), 2)
+
+    def test_other_library_filters_ebooks(self):
+        s = mock.Mock()
+        s.get.return_value = resp(text=RESULT)
+        data = katalog.search("poirot", library="other", session=s)
+        self.assertEqual(s.get.call_args[1]["params"]["area"], -1)
+        self.assertEqual([r["work_id"] for r in data["results"]], [1481396])

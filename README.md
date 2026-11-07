@@ -85,12 +85,16 @@ jako počáteční, dále platí to, co uložíte ve webovém rozhraní.
 ### Půjčování z katalogu knihovny (katalog.tsk.sk)
 
 Knihovny Trenčianskeho samosprávneho kraja (např. VKMR Trenčín) půjčují
-e-knihy Palmknihy přes svůj online katalog. Po vyplnění přihlášení ke katalogu
-v nastavení se na hlavní stránce objeví pole „Vypůjčit e-knihu“: vložte odkaz
-na knihu v katalogu nebo její ID díla (`workId`). Neknihy knihu vypůjčí a hned
-ji stáhne z Palmknihy (a případně synchronizuje).
+e-knihy Palmknihy přes svůj online katalog. Na hlavní stránce je pole
+„Hledat a půjčit e-knihu“: zadejte název, autora nebo ISBN a Neknihy zobrazí
+e-knihy z katalogu (hledání nevyžaduje přihlášení). Po vyplnění přihlášení
+ke katalogu v nastavení má každá kniha tlačítko „Půjčit“; Neknihy ji vypůjčí
+a hned stáhne z Palmknihy (a případně synchronizuje). Knihy, které už máte
+vypůjčené, jsou ve výsledcích označené. Místo hledání lze vložit i odkaz
+na knihu v katalogu nebo její ID díla (`workId`).
 
 Z příkazové řádky:
+`python3 src/neknihy_cli.py --search poirot` (vypíše `workId` nalezených e-knih),
 `NEKNIHY_TSK_USERNAME=... NEKNIHY_TSK_PASSWORD=... NEKNIHY_EMAIL=... NEKNIHY_PASSWORD=... python3 src/neknihy_cli.py --borrow 1439847`
 
 Webové rozhraní je v češtině, slovenštině, angličtině a němčině. Jazyk se

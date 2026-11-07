@@ -14,6 +14,8 @@ without a GUI and without a config file:
     NEKNIHY_INTERVAL   Seconds between runs (default 21600 = 6 h); 0 = run once
     NEKNIHY_AUTO_RETURN "1" = delete files of expired loans (default 1)
     NEKNIHY_DEBUG      "1" = print HTTP debug output
+
+Search the library catalogue (no login): neknihy_cli.py --search QUERY
     NEKNIHY_TSK_USERNAME  library catalogue (katalog.tsk.sk) login, for --borrow
     NEKNIHY_TSK_PASSWORD  library catalogue password
     NEKNIHY_TSK_LIBRARY   library code in the catalogue URL (default vkmr)
@@ -28,6 +30,7 @@ import sys
 import threading
 
 from neknihy.app import App
+from neknihy import katalog
 from neknihy.katalog import parse_work_id
 
 log = logging.getLogger("neknihy")
@@ -103,6 +106,20 @@ def run_once(app, auto_return=None):
                      len(result["removed"]), result["total"])
 
 
+def print_search(query):
+    """Print catalogue search results; returns the exit code."""
+    try:
+        res = katalog.search(query, library=env("NEKNIHY_TSK_LIBRARY", "vkmr"))
+    except Exception as e:
+        log.error("Search failed: %s", e)
+        return 1
+    for r in res["results"]:
+        print("%-9d %s – %s (%s)" % (r["work_id"], r["title"], "; ".join(r["authors"]),
+                                     r["publish_info"]))
+    print("%d e-book(s). Borrow one with: --borrow WORK_ID" % res["total"])
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description="Neknihy headless runner")
     parser.add_argument("--once", action="store_true", help="run once and exit")
@@ -111,6 +128,9 @@ def main():
     parser.add_argument("--borrow", metavar="WORK",
                         help="borrow an e-book in katalog.tsk.sk (link or work ID), "
                              "download it and exit")
+    parser.add_argument("--search", metavar="QUERY",
+                        help="search e-books in katalog.tsk.sk, print them and exit "
+                             "(no login needed)")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, stream=sys.stdout,
@@ -122,6 +142,9 @@ def main():
 
     signal.signal(signal.SIGTERM, handle_signal)
     signal.signal(signal.SIGINT, handle_signal)
+
+    if args.search:
+        sys.exit(print_search(args.search))
 
     app = build_app(args)
     if args.borrow:

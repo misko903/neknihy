@@ -35,6 +35,7 @@ from urllib.parse import parse_qs, quote, urlparse
 
 from neknihy import i18n
 from neknihy.app import App
+from neknihy import katalog
 from neknihy.katalog import parse_work_id
 from neknihy_cli import env, run_once
 
@@ -248,6 +249,7 @@ _ICON_PATHS = {
             "<path d='M12 6v7'/><path d='M10 18h4'/>",
     "return": "<path d='M9 14 4 9l5-5'/><path d='M4 9h10.5a5.5 5.5 0 0 1 0 11H11'/>",
     "borrow": "<path d='M12 5v14'/><path d='M5 12h14'/>",
+    "search": "<circle cx='11' cy='11' r='7'/><path d='m20 20-3.5-3.5'/>",
     "loans": "<path d='M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z'/>"
              "<path d='M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z'/>",
     "settings": "<path d='M4 6h10'/><path d='M18 6h2'/><circle cx='16' cy='6' r='2'/>"
@@ -439,6 +441,22 @@ width:40px;
 height:40px;
 display:block;
 margin:0 auto 8px}
+.cover{
+width:44px;
+border-radius:4px;
+display:block}
+input[type=search]{
+padding:8px;
+border:1px solid var(--line);
+border-radius:8px;
+background:var(--bg);
+color:var(--fg);
+font:inherit}
+summary{
+cursor:pointer;
+margin-top:10px}
+td form{
+margin:0}
 .st-new{
 color:var(--fg)}
 @media (max-width:600px){
@@ -486,21 +504,90 @@ def fmt_date(t, value):
         return esc(value)
 
 
+def search_form(t, query=""):
+    return ("<form method='get' action='/search' class='actions'>"
+            "<input type='search' name='q' value='%s' required style='flex:1;min-width:200px' "
+            "placeholder='%s' aria-label='%s'>"
+            "<button class='primary'>%s<span>%s</span></button></form>" % (
+                esc(query), esc(t("search.placeholder")), esc(t("search.placeholder")),
+                icon("search"), esc(t("btn.search"))))
+
+
+def not_configured_hint(t):
+    link = "<a href='/settings'>%s</a>" % esc(t("settings_link"))
+    return "<p class='mut'>%s</p>" % esc(
+        t("borrow.not_configured", settings="\x00")).replace("\x00", link)
+
+
 def render_borrow(svc, t):
+    parts = [search_form(t)]
     if svc.app.settings.katalog_configured():
-        form = ("<form method='post' action='/borrow' class='actions'>"
-                "<input type='text' name='work' required style='flex:1;min-width:200px' "
-                "placeholder='https://katalog.tsk.sk/…?workId=1439847' aria-label='%s'>"
-                "<button class='primary'>%s<span>%s</span></button></form>"
-                "<p class='mut'>%s</p>" % (
-                    esc(t("borrow.label")), icon("borrow"), esc(t("btn.borrow")),
-                    esc(t("borrow.label"))))
+        parts.append(
+            "<details><summary class='mut'>%s</summary>"
+            "<form method='post' action='/borrow' class='actions' style='margin-top:8px'>"
+            "<input type='text' name='work' required style='flex:1;min-width:200px' "
+            "placeholder='https://katalog.tsk.sk/…?workId=1439847' aria-label='%s'>"
+            "<button>%s<span>%s</span></button></form></details>" % (
+                esc(t("borrow.label")), esc(t("borrow.label")), icon("borrow"),
+                esc(t("btn.borrow"))))
     else:
-        link = "<a href='/settings'>%s</a>" % esc(t("settings_link"))
-        form = "<p class='mut'>%s</p>" % esc(
-            t("borrow.not_configured", settings="\x00")).replace("\x00", link)
+        parts.append(not_configured_hint(t))
     return "<div class='card'><h2>%s%s</h2>%s</div>" % (
-        icon("borrow"), esc(t("borrow.title")), form)
+        icon("search"), esc(t("borrow.title")), "".join(parts))
+
+
+def render_search(svc, t, query, page_no):
+    app = svc.app
+    s = app.settings
+    body = ["<div class='card'><h2>%s%s</h2>%s</div>" % (
+        icon("search"), esc(t("borrow.title")), search_form(t, query))]
+    try:
+        res = katalog.search(query, library=s.tsk_library or "vkmr", page=page_no)
+    except Exception as e:
+        log.error("Catalogue search failed: %s", e)
+        body.append("<div class='card'><p class='st st-pending'>%s%s</p></div>" % (
+            icon("warn"), esc(t("search.error", error=e))))
+        return page(t, "%s – Neknihy" % t("btn.search"), "".join(body), "/")
+
+    loaned = {b.get("palm_id") for b in app.books
+              if b.get("neknihy", {}).get("status") != "expired"}
+    can_borrow = s.katalog_configured()
+    lib_url = "%s/library/%s" % (katalog.BASE_URL, esc(s.tsk_library or "vkmr"))
+    rows = []
+    for r in res["results"]:
+        if r["palm_id"] is not None and r["palm_id"] in loaned:
+            action = "<span class='st st-ok'>%s%s</span>" % (icon("ok"), esc(t("search.loaned")))
+        elif r["ebook"] and can_borrow:
+            action = ("<form method='post' action='/borrow'>"
+                      "<input type='hidden' name='work' value='%d'>"
+                      "<button class='primary' title='%s'>%s<span>%s</span></button></form>"
+                      % (r["work_id"], esc(t("btn.borrow")), icon("borrow"),
+                         esc(t("btn.borrow"))))
+        else:
+            action = ""
+        cover = ("<img src='%s' alt='' loading='lazy' class='cover'>" % esc(r["cover"])
+                 if r["cover"] else "")
+        rows.append(
+            "<tr><td class='hide-sm'>%s</td><td><a href='%s/detail/%d' target='_blank' "
+            "rel='noopener'>%s</a><div class='mut'>%s</div><div class='mut'>%s</div></td>"
+            "<td>%s</td></tr>" % (
+                cover, lib_url, r["work_id"], esc(r["title"] or r["work_id"]),
+                esc("; ".join(r["authors"])), esc(r["publish_info"]), action))
+    if rows:
+        table = "<p class='mut'>%s</p><table>%s</table>" % (
+            esc(t("search.results", n=res["total"])), "".join(rows))
+    else:
+        table = "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("search.none")))
+    if res["pages"] > 1:
+        links = []
+        for n in range(1, res["pages"] + 1):
+            links.append("<b>%d</b>" % n if n == page_no else
+                         "<a href='/search?q=%s&amp;page=%d'>%d</a>" % (quote(query), n, n))
+        table += "<p class='actions'>%s</p>" % " ".join(links)
+    if not can_borrow:
+        table += not_configured_hint(t)
+    body.append("<div class='card'>%s</div>" % table)
+    return page(t, "%s – Neknihy" % t("btn.search"), "".join(body), "/")
 
 
 def render_index(svc, t):
@@ -680,6 +767,17 @@ def make_handler(svc):
                 self._send(render_index(svc, t))
             elif path == "/settings":
                 self._send(render_settings(svc, t))
+            elif path == "/search":
+                q = parse_qs(url.query)
+                query = q.get("q", [""])[0].strip()
+                try:
+                    page_no = max(1, int(q.get("page", ["1"])[0]))
+                except ValueError:
+                    page_no = 1
+                if query:
+                    self._send(render_search(svc, t, query[:200], page_no))
+                else:
+                    self._redirect("/")
             elif path == "/lang":
                 q = parse_qs(url.query)
                 lang = i18n.normalize(q.get("l", [""])[0])
