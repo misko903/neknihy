@@ -14,6 +14,11 @@ without a GUI and without a config file:
     NEKNIHY_INTERVAL   Seconds between runs (default 21600 = 6 h); 0 = run once
     NEKNIHY_AUTO_RETURN "1" = delete files of expired loans (default 1)
     NEKNIHY_DEBUG      "1" = print HTTP debug output
+
+Search the library catalogue (no login): neknihy_cli.py --search QUERY
+    NEKNIHY_TSK_USERNAME  library catalogue (katalog.tsk.sk) login, for --borrow
+    NEKNIHY_TSK_PASSWORD  library catalogue password
+    NEKNIHY_TSK_LIBRARY   library code in the catalogue URL (default vkmr)
 """
 
 import argparse
@@ -25,6 +30,8 @@ import sys
 import threading
 
 from neknihy.app import App
+from neknihy import katalog
+from neknihy.katalog import parse_work_id
 
 log = logging.getLogger("neknihy")
 stop_event = threading.Event()
@@ -46,6 +53,9 @@ def build_app(args):
     s.readerdir = args.readerdir or env("NEKNIHY_READERDIR")
     s.convert = env("NEKNIHY_CONVERT", "0")
     s.convertor = env("NEKNIHY_CONVERTOR", "ebook-convert")
+    s.tsk_username = env("NEKNIHY_TSK_USERNAME")
+    s.tsk_password = env("NEKNIHY_TSK_PASSWORD")
+    s.tsk_library = env("NEKNIHY_TSK_LIBRARY", "vkmr")
 
     if not s.email or not s.password:
         log.error("NEKNIHY_EMAIL and NEKNIHY_PASSWORD must be set")
@@ -96,11 +106,31 @@ def run_once(app, auto_return=None):
                      len(result["removed"]), result["total"])
 
 
+def print_search(query):
+    """Print catalogue search results; returns the exit code."""
+    try:
+        res = katalog.search(query, library=env("NEKNIHY_TSK_LIBRARY", "vkmr"))
+    except Exception as e:
+        log.error("Search failed: %s", e)
+        return 1
+    for r in res["results"]:
+        print("%-9d %s – %s (%s)" % (r["work_id"], r["title"], "; ".join(r["authors"]),
+                                     r["publish_info"]))
+    print("%d e-book(s). Borrow one with: --borrow WORK_ID" % res["total"])
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description="Neknihy headless runner")
     parser.add_argument("--once", action="store_true", help="run once and exit")
     parser.add_argument("--workdir", help="override NEKNIHY_WORKDIR")
     parser.add_argument("--readerdir", help="override NEKNIHY_READERDIR")
+    parser.add_argument("--borrow", metavar="WORK",
+                        help="borrow an e-book in katalog.tsk.sk (link or work ID), "
+                             "download it and exit")
+    parser.add_argument("--search", metavar="QUERY",
+                        help="search e-books in katalog.tsk.sk, print them and exit "
+                             "(no login needed)")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, stream=sys.stdout,
@@ -113,7 +143,21 @@ def main():
     signal.signal(signal.SIGTERM, handle_signal)
     signal.signal(signal.SIGINT, handle_signal)
 
+    if args.search:
+        sys.exit(print_search(args.search))
+
     app = build_app(args)
+    if args.borrow:
+        work_id = parse_work_id(args.borrow)
+        if work_id is None:
+            log.error("Not a catalogue link or work ID: %s", args.borrow)
+            sys.exit(2)
+        try:
+            app.borrowFromKatalog(work_id)
+        except Exception as e:
+            log.error("Borrow failed: %s", e)
+            sys.exit(1)
+        args.once = True
     interval = 0 if args.once else int(env("NEKNIHY_INTERVAL", "21600"))
 
     while not stop_event.is_set():

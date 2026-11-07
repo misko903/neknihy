@@ -40,5 +40,18 @@
   "set.save": "Uložiť",
   "err.not_found": "Nenájdené",
   "err.forbidden": "Zakázané",
+  "borrow.title": "Hľadať a požičať e-knihu (katalóg knižnice)",
+  "borrow.label": "Alebo vložte odkaz na knihu v katalog.tsk.sk či jej ID diela (workId)",
+  "borrow.not_configured": "Na požičiavanie z katalógu knižnice doplňte prihlásenie do katalógu: {settings}.",
+  "btn.borrow": "Požičať",
+  "set.tsk": "Katalóg knižnice (katalog.tsk.sk)",
+  "set.tsk_username": "Prihlásenie do katalógu (e-mail alebo číslo preukazu)",
+  "set.tsk_library": "Kód knižnice z adresy katalógu, napr. vkmr",
+  "btn.search": "Hľadať",
+  "search.placeholder": "Názov, autor alebo ISBN",
+  "search.results": "Nájdené e-knihy: {n}",
+  "search.none": "Nič sa nenašlo.",
+  "search.loaned": "požičaná",
+  "search.error": "Vyhľadávanie v katalógu zlyhalo: {error}",
   "log.title": "Záznam"
 }

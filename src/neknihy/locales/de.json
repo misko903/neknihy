@@ -40,5 +40,18 @@
   "set.save": "Speichern",
   "err.not_found": "Nicht gefunden",
   "err.forbidden": "Verboten",
+  "borrow.title": "E-Book suchen und ausleihen (Bibliothekskatalog)",
+  "borrow.label": "Oder Link zum Buch in katalog.tsk.sk bzw. seine Werk-ID einfügen",
+  "borrow.not_configured": "Um aus dem Bibliothekskatalog auszuleihen, die Katalog-Anmeldung in den {settings} ausfüllen.",
+  "btn.borrow": "Ausleihen",
+  "set.tsk": "Bibliothekskatalog (katalog.tsk.sk)",
+  "set.tsk_username": "Katalog-Anmeldung (E-Mail oder Lesernummer)",
+  "set.tsk_library": "Bibliothekskürzel aus der Katalogadresse, z. B. vkmr",
+  "btn.search": "Suchen",
+  "search.placeholder": "Titel, Autor oder ISBN",
+  "search.results": "Gefundene E-Books: {n}",
+  "search.none": "Nichts gefunden.",
+  "search.loaned": "ausgeliehen",
+  "search.error": "Katalogsuche fehlgeschlagen: {error}",
   "log.title": "Protokoll"
 }

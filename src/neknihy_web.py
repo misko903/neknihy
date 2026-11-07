@@ -11,7 +11,9 @@
 
 Settings entered in the UI are stored in NEKNIHY_CONFIG_DIR. On first start
 NEKNIHY_EMAIL / NEKNIHY_PASSWORD / NEKNIHY_WORKDIR / NEKNIHY_READERDIR /
-NEKNIHY_INTERVAL / NEKNIHY_AUTO_RETURN env vars are used as initial values.
+NEKNIHY_INTERVAL / NEKNIHY_AUTO_RETURN env vars are used as initial values,
+as are NEKNIHY_TSK_USERNAME / NEKNIHY_TSK_PASSWORD / NEKNIHY_TSK_LIBRARY for
+borrowing e-books in the library catalogue (katalog.tsk.sk).
 """
 
 import base64
@@ -33,6 +35,8 @@ from urllib.parse import parse_qs, quote, urlparse
 
 from neknihy import i18n
 from neknihy.app import App
+from neknihy import katalog
+from neknihy.katalog import parse_work_id
 from neknihy_cli import env, run_once
 
 log = logging.getLogger("neknihy")
@@ -98,6 +102,10 @@ class Service:
             readerdir=s.readerdir or env("NEKNIHY_READERDIR"),
             convert=s.convert if s.convert != "0" else env("NEKNIHY_CONVERT", "0"),
             convertor=s.convertor or env("NEKNIHY_CONVERTOR", "ebook-convert"),
+            tsk_username=s.tsk_username or env("NEKNIHY_TSK_USERNAME"),
+            tsk_password=s.tsk_password or env("NEKNIHY_TSK_PASSWORD"),
+            tsk_library=(s.tsk_library if s.tsk_library not in ("", "vkmr")
+                         else env("NEKNIHY_TSK_LIBRARY", "vkmr")),
         )
         try:
             os.chmod(CONF_FILE, 0o600)
@@ -116,6 +124,7 @@ class Service:
     def save_settings(self, form):
         s = self.app.settings
         password = form.get("password", "")
+        tsk_password = form.get("tsk_password", "")
         convert = "1" if form.get("convert") else "0"
         if convert == "1" and shutil.which(form.get("convertor") or s.convertor) is None:
             log.warning("ebook-convert not found, conversion disabled")
@@ -128,6 +137,9 @@ class Service:
                 form.get("readerdir", "").strip(),
                 convert,
                 form.get("convertor", "").strip() or "ebook-convert",
+                tsk_username=form.get("tsk_username", "").strip(),
+                tsk_password=tsk_password if tsk_password else s.tsk_password,
+                tsk_library=form.get("tsk_library", "").strip().lower() or "vkmr",
             )
             try:
                 interval = max(0, int(form.get("interval_h", "6") or 0) * 3600)
@@ -179,6 +191,28 @@ class Service:
             self.lock.release()
             self.wake.set()
 
+    def borrow(self, work_id):
+        """Borrow in the library catalogue, then fetch it from Palmknihy."""
+        if not self.lock.acquire(blocking=False):
+            log.warning("Another operation is running, try again later")
+            return
+        self.running = True
+        try:
+            app = self.app
+            app.borrowFromKatalog(work_id)
+            if app.settings.configured():
+                app.api.logout()
+                run_once(app, self.web["auto_return"])
+            self.last_error = None
+        except Exception as e:
+            log.error("borrow failed: %s", e)
+            self.last_error = str(e)
+        finally:
+            self.last_run = datetime.now()
+            self.running = False
+            self.lock.release()
+            self.wake.set()
+
     def scheduler(self):
         while not self.stop.is_set():
             interval = self.web["interval"]
@@ -214,6 +248,8 @@ _ICON_PATHS = {
     "sync": "<rect x='5' y='2' width='14' height='20' rx='2'/><path d='M9 10l3 3 3-3'/>"
             "<path d='M12 6v7'/><path d='M10 18h4'/>",
     "return": "<path d='M9 14 4 9l5-5'/><path d='M4 9h10.5a5.5 5.5 0 0 1 0 11H11'/>",
+    "borrow": "<path d='M12 5v14'/><path d='M5 12h14'/>",
+    "search": "<circle cx='11' cy='11' r='7'/><path d='m20 20-3.5-3.5'/>",
     "loans": "<path d='M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z'/>"
              "<path d='M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z'/>",
     "settings": "<path d='M4 6h10'/><path d='M18 6h2'/><circle cx='16' cy='6' r='2'/>"
@@ -405,6 +441,22 @@ width:40px;
 height:40px;
 display:block;
 margin:0 auto 8px}
+.cover{
+width:44px;
+border-radius:4px;
+display:block}
+input[type=search]{
+padding:8px;
+border:1px solid var(--line);
+border-radius:8px;
+background:var(--bg);
+color:var(--fg);
+font:inherit}
+summary{
+cursor:pointer;
+margin-top:10px}
+td form{
+margin:0}
 .st-new{
 color:var(--fg)}
 @media (max-width:600px){
@@ -452,6 +504,92 @@ def fmt_date(t, value):
         return esc(value)
 
 
+def search_form(t, query=""):
+    return ("<form method='get' action='/search' class='actions'>"
+            "<input type='search' name='q' value='%s' required style='flex:1;min-width:200px' "
+            "placeholder='%s' aria-label='%s'>"
+            "<button class='primary'>%s<span>%s</span></button></form>" % (
+                esc(query), esc(t("search.placeholder")), esc(t("search.placeholder")),
+                icon("search"), esc(t("btn.search"))))
+
+
+def not_configured_hint(t):
+    link = "<a href='/settings'>%s</a>" % esc(t("settings_link"))
+    return "<p class='mut'>%s</p>" % esc(
+        t("borrow.not_configured", settings="\x00")).replace("\x00", link)
+
+
+def render_borrow(svc, t):
+    parts = [search_form(t)]
+    if svc.app.settings.katalog_configured():
+        parts.append(
+            "<details><summary class='mut'>%s</summary>"
+            "<form method='post' action='/borrow' class='actions' style='margin-top:8px'>"
+            "<input type='text' name='work' required style='flex:1;min-width:200px' "
+            "placeholder='https://katalog.tsk.sk/…?workId=1439847' aria-label='%s'>"
+            "<button>%s<span>%s</span></button></form></details>" % (
+                esc(t("borrow.label")), esc(t("borrow.label")), icon("borrow"),
+                esc(t("btn.borrow"))))
+    else:
+        parts.append(not_configured_hint(t))
+    return "<div class='card'><h2>%s%s</h2>%s</div>" % (
+        icon("search"), esc(t("borrow.title")), "".join(parts))
+
+
+def render_search(svc, t, query, page_no):
+    app = svc.app
+    s = app.settings
+    body = ["<div class='card'><h2>%s%s</h2>%s</div>" % (
+        icon("search"), esc(t("borrow.title")), search_form(t, query))]
+    try:
+        res = katalog.search(query, library=s.tsk_library or "vkmr", page=page_no)
+    except Exception as e:
+        log.error("Catalogue search failed: %s", e)
+        body.append("<div class='card'><p class='st st-pending'>%s%s</p></div>" % (
+            icon("warn"), esc(t("search.error", error=e))))
+        return page(t, "%s – Neknihy" % t("btn.search"), "".join(body), "/")
+
+    loaned = {b.get("palm_id") for b in app.books
+              if b.get("neknihy", {}).get("status") != "expired"}
+    can_borrow = s.katalog_configured()
+    lib_url = "%s/library/%s" % (katalog.BASE_URL, esc(s.tsk_library or "vkmr"))
+    rows = []
+    for r in res["results"]:
+        if r["palm_id"] is not None and r["palm_id"] in loaned:
+            action = "<span class='st st-ok'>%s%s</span>" % (icon("ok"), esc(t("search.loaned")))
+        elif r["ebook"] and can_borrow:
+            action = ("<form method='post' action='/borrow'>"
+                      "<input type='hidden' name='work' value='%d'>"
+                      "<button class='primary' title='%s'>%s<span>%s</span></button></form>"
+                      % (r["work_id"], esc(t("btn.borrow")), icon("borrow"),
+                         esc(t("btn.borrow"))))
+        else:
+            action = ""
+        cover = ("<img src='%s' alt='' loading='lazy' class='cover'>" % esc(r["cover"])
+                 if r["cover"] else "")
+        rows.append(
+            "<tr><td class='hide-sm'>%s</td><td><a href='%s/detail/%d' target='_blank' "
+            "rel='noopener'>%s</a><div class='mut'>%s</div><div class='mut'>%s</div></td>"
+            "<td>%s</td></tr>" % (
+                cover, lib_url, r["work_id"], esc(r["title"] or r["work_id"]),
+                esc("; ".join(r["authors"])), esc(r["publish_info"]), action))
+    if rows:
+        table = "<p class='mut'>%s</p><table>%s</table>" % (
+            esc(t("search.results", n=res["total"])), "".join(rows))
+    else:
+        table = "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("search.none")))
+    if res["pages"] > 1:
+        links = []
+        for n in range(1, res["pages"] + 1):
+            links.append("<b>%d</b>" % n if n == page_no else
+                         "<a href='/search?q=%s&amp;page=%d'>%d</a>" % (quote(query), n, n))
+        table += "<p class='actions'>%s</p>" % " ".join(links)
+    if not can_borrow:
+        table += not_configured_hint(t)
+    body.append("<div class='card'>%s</div>" % table)
+    return page(t, "%s – Neknihy" % t("btn.search"), "".join(body), "/")
+
+
 def render_index(svc, t):
     app = svc.app
     rows = []
@@ -492,10 +630,10 @@ def render_index(svc, t):
            esc(t("btn." + a)))
         for a in ("run", "refresh", "download", "sync", "return"))
     body = ("<div class='card'><form method='post' action='/action' class='actions'>%s</form>"
-            "<p class='mut'>%s</p></div><div class='card'>%s</div>"
+            "<p class='mut'>%s</p></div>%s<div class='card'>%s</div>"
             "<div class='card'><h2>%s%s</h2><pre>%s</pre></div>" % (
-                buttons, "<br>".join(status), table, icon("log"), esc(t("log.title")),
-                esc("\n".join(reversed(svc.log.lines)))))
+                buttons, "<br>".join(status), render_borrow(svc, t), table, icon("log"),
+                esc(t("log.title")), esc("\n".join(reversed(svc.log.lines)))))
     return page(t, "Neknihy", body, "/")
 
 
@@ -514,6 +652,10 @@ def render_settings(svc, t):
 <div class='chk'><input type='checkbox' name='convert' id='cv'%s>
 <label for='cv' style='margin:0'>%s</label></div>
 <label>%s</label><input type='text' name='convertor' value='%s'>
+<h2 style='margin-top:20px'>%s%s</h2>
+<label>%s</label><input type='text' name='tsk_username' value='%s' autocomplete='off'>
+<label>%s %s</label><input type='password' name='tsk_password' autocomplete='new-password'>
+<label>%s</label><input type='text' name='tsk_library' value='%s'>
 <p><button class='primary'>%s%s</button></p></form></div>""" % (
         esc(t("set.email")), esc(s.email),
         esc(t("set.password")), esc(t("set.password_keep")) if s.password else "",
@@ -522,7 +664,12 @@ def render_settings(svc, t):
         esc(t("set.interval")), svc.web["interval"] // 3600,
         " checked" if svc.web["auto_return"] else "", esc(t("set.auto_return")),
         " checked" if s.convert == "1" else "", esc(t("set.convert")),
-        esc(t("set.convertor")), esc(s.convertor), icon("ok"), esc(t("set.save")))
+        esc(t("set.convertor")), esc(s.convertor),
+        icon("borrow"), esc(t("set.tsk")),
+        esc(t("set.tsk_username")), esc(s.tsk_username),
+        esc(t("set.password")), esc(t("set.password_keep")) if s.tsk_password else "",
+        esc(t("set.tsk_library")), esc(s.tsk_library),
+        icon("ok"), esc(t("set.save")))
     return page(t, "%s – Neknihy" % t("title.settings"), body, "/settings")
 
 
@@ -620,6 +767,17 @@ def make_handler(svc):
                 self._send(render_index(svc, t))
             elif path == "/settings":
                 self._send(render_settings(svc, t))
+            elif path == "/search":
+                q = parse_qs(url.query)
+                query = q.get("q", [""])[0].strip()
+                try:
+                    page_no = max(1, int(q.get("page", ["1"])[0]))
+                except ValueError:
+                    page_no = 1
+                if query:
+                    self._send(render_search(svc, t, query[:200], page_no))
+                else:
+                    self._redirect("/")
             elif path == "/lang":
                 q = parse_qs(url.query)
                 lang = i18n.normalize(q.get("l", [""])[0])
@@ -649,6 +807,14 @@ def make_handler(svc):
                 a = form.get("a", "")
                 if a in ("run", "refresh", "download", "sync", "return"):
                     threading.Thread(target=svc.action, args=(a,), daemon=True).start()
+                    time.sleep(0.3)
+                self._redirect("/")
+            elif path == "/borrow":
+                work_id = parse_work_id(form.get("work", ""))
+                if work_id is None:
+                    log.error("Not a catalogue link or work ID: %s", form.get("work", ""))
+                else:
+                    threading.Thread(target=svc.borrow, args=(work_id,), daemon=True).start()
                     time.sleep(0.3)
                 self._redirect("/")
             else:
