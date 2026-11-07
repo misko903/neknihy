@@ -53,5 +53,6 @@
   "search.none": "Nič sa nenašlo.",
   "search.loaned": "požičaná",
   "search.error": "Vyhľadávanie v katalógu zlyhalo: {error}",
-  "log.title": "Záznam"
+  "log.title": "Záznam",
+  "set.lang_auto": "Automaticky (podľa prehliadača)"
 }

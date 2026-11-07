@@ -53,5 +53,6 @@
   "search.none": "Nichts gefunden.",
   "search.loaned": "ausgeliehen",
   "search.error": "Katalogsuche fehlgeschlagen: {error}",
-  "log.title": "Protokoll"
+  "log.title": "Protokoll",
+  "set.lang_auto": "Automatisch (Browsersprache)"
 }

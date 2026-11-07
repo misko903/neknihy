@@ -7,7 +7,8 @@
     NEKNIHY_CONFIG_DIR    folder for settings (default /config)
     NEKNIHY_LANG          default UI language (cs, sk, en, de); otherwise
                           taken from the browser, fallback cs. Each viewer
-                          can switch language in the page header (cookie).
+                          can pick a language or "Automatic (browser)" in
+                          Settings (stored per browser in a cookie).
 
 Settings entered in the UI are stored in NEKNIHY_CONFIG_DIR. On first start
 NEKNIHY_EMAIL / NEKNIHY_PASSWORD / NEKNIHY_WORKDIR / NEKNIHY_READERDIR /
@@ -48,6 +49,7 @@ PORT = int(env("NEKNIHY_WEB_PORT", "8478"))
 WEB_PASSWORD = env("NEKNIHY_WEB_PASSWORD")
 DEFAULT_LANG = i18n.normalize(env("NEKNIHY_LANG"))
 FALLBACK_LANG = "cs"  # the app's original language
+LANG_COOKIE = "neknihy_lang=%s; Path=/; Max-Age=31536000; SameSite=Lax"
 STATUSES = ("new", "pending", "ok", "expired")
 
 
@@ -381,7 +383,7 @@ display:block;
 margin:10px 0 4px;
 font-size:13px;
 color:var(--mut)}
-input[type=text],input[type=email],input[type=password],input[type=number]{
+input[type=text],input[type=email],input[type=password],input[type=number],select{
 width:100%;
 padding:8px;
 border:1px solid var(--line);
@@ -389,16 +391,6 @@ border-radius:8px;
 background:var(--bg);
 color:var(--fg);
 font:inherit}
-header .lang{
-display:flex;
-gap:6px;
-font-size:13px}
-header .lang a{
-text-decoration:none;
-color:var(--mut)}
-header .lang a.on{
-color:var(--fg);
-font-weight:600}
 .chk{
 display:flex;
 gap:8px;
@@ -467,8 +459,6 @@ header nav{
 order:3;
 margin-left:0;
 width:100%}
-header .lang{
-margin-left:auto}
 .actions button span{
 display:none}
 }
@@ -480,21 +470,16 @@ def esc(v):
 
 
 def page(t, title, body, path="/"):
-    langs = "".join(
-        "<a href='/lang?l=%s&amp;next=%s' hreflang='%s' title='%s'%s>%s</a>"
-        % (code, quote(path), code, esc(name), " class='on'" if code == t.lang else "",
-           code.upper())
-        for code, name in i18n.available())
     return ("<!doctype html><html lang='%s'><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width,initial-scale=1'>"
             "<title>%s</title><link rel='icon' type='image/png' href='/favicon.png'>"
             "<link rel='apple-touch-icon' href='/apple-touch-icon.png'>"
             "<style>%s</style></head><body>"
             "<header><h1><img src='/icon.png' alt=''>Neknihy</h1><nav><a href='/'>%s%s</a>"
-            "<a href='/settings'>%s%s</a></nav><div class='lang' aria-label='%s'>%s%s</div>"
+            "<a href='/settings'>%s%s</a></nav>"
             "</header><main>%s</main></body></html>"
             % (t.lang, esc(title), CSS, icon("loans"), esc(t("nav.loans")), icon("settings"),
-               esc(t("nav.settings")), esc(t("nav.language")), icon("lang"), langs, body))
+               esc(t("nav.settings")), body))
 
 
 def fmt_date(t, value):
@@ -637,9 +622,19 @@ def render_index(svc, t):
     return page(t, "Neknihy", body, "/")
 
 
-def render_settings(svc, t):
+def language_select(t, choice):
+    """<select> with 'auto' (browser) plus every available language."""
+    opts = [("auto", t("set.lang_auto"))] + i18n.available()
+    return "<select name='lang' id='lang'>%s</select>" % "".join(
+        "<option value='%s'%s>%s</option>" % (
+            esc(code), " selected" if code == choice else "", esc(name))
+        for code, name in opts)
+
+
+def render_settings(svc, t, lang_choice="auto"):
     s = svc.app.settings
     body = """<div class='card'><form method='post' action='/settings'>
+<label for='lang'>%s%s</label>%s
 <label>%s</label><input type='email' name='email' value='%s' required>
 <label>%s %s</label><input type='password' name='password' autocomplete='new-password'>
 <label>%s</label><input type='text' name='workdir' value='%s'>
@@ -657,6 +652,7 @@ def render_settings(svc, t):
 <label>%s %s</label><input type='password' name='tsk_password' autocomplete='new-password'>
 <label>%s</label><input type='text' name='tsk_library' value='%s'>
 <p><button class='primary'>%s%s</button></p></form></div>""" % (
+        icon("lang"), esc(t("nav.language")), language_select(t, lang_choice),
         esc(t("set.email")), esc(s.email),
         esc(t("set.password")), esc(t("set.password_keep")) if s.password else "",
         esc(t("set.workdir")), esc(s.workdir),
@@ -733,19 +729,26 @@ def make_handler(svc):
                 self.send_header("Set-Cookie", cookie)
             self.end_headers()
 
-        def _translator(self):
-            lang = None
+        def _lang_cookie(self):
+            """Language stored in this browser: a code, 'auto' or None."""
             raw = self.headers.get("Cookie")
             if raw:
                 try:
                     c = SimpleCookie(raw)
                     if "neknihy_lang" in c:
-                        lang = i18n.normalize(c["neknihy_lang"].value)
+                        v = c["neknihy_lang"].value
+                        return "auto" if v == "auto" else i18n.normalize(v)
                 except Exception:
                     pass
-            lang = (lang or DEFAULT_LANG
-                    or i18n.from_accept_language(self.headers.get("Accept-Language"))
-                    or FALLBACK_LANG)
+            return None
+
+        def _translator(self):
+            choice = self._lang_cookie()
+            browser = i18n.from_accept_language(self.headers.get("Accept-Language"))
+            if choice == "auto":  # explicitly "follow the browser"
+                lang = browser or DEFAULT_LANG or FALLBACK_LANG
+            else:
+                lang = choice or DEFAULT_LANG or browser or FALLBACK_LANG
             return i18n.Translator(lang)
 
         def _error(self, t, code, key):
@@ -766,7 +769,8 @@ def make_handler(svc):
             if path == "/":
                 self._send(render_index(svc, t))
             elif path == "/settings":
-                self._send(render_settings(svc, t))
+                choice = self._lang_cookie() or ("auto" if not DEFAULT_LANG else DEFAULT_LANG)
+                self._send(render_settings(svc, t, choice))
             elif path == "/search":
                 q = parse_qs(url.query)
                 query = q.get("q", [""])[0].strip()
@@ -780,12 +784,12 @@ def make_handler(svc):
                     self._redirect("/")
             elif path == "/lang":
                 q = parse_qs(url.query)
-                lang = i18n.normalize(q.get("l", [""])[0])
+                raw = q.get("l", [""])[0]
+                lang = "auto" if raw == "auto" else i18n.normalize(raw)
                 nxt = q.get("next", ["/"])[0]
                 if nxt not in ("/", "/settings"):
                     nxt = "/"  # no open redirects
-                cookie = ("neknihy_lang=%s; Path=/; Max-Age=31536000; SameSite=Lax" % lang
-                          if lang else None)
+                cookie = (LANG_COOKIE % lang) if lang else None
                 self._redirect(nxt, cookie)
             else:
                 self._error(t, 404, "err.not_found")
@@ -802,7 +806,10 @@ def make_handler(svc):
             path = urlparse(self.path).path
             if path == "/settings":
                 svc.save_settings(form)
-                self._redirect("/")
+                raw = form.get("lang", "")
+                lang = "auto" if raw == "auto" else i18n.normalize(raw)
+                cookie = (LANG_COOKIE % lang) if lang else None
+                self._redirect("/", cookie)
             elif path == "/action":
                 a = form.get("a", "")
                 if a in ("run", "refresh", "download", "sync", "return"):
