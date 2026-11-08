@@ -394,6 +394,7 @@ _ICON_PATHS = {
               "<path d='M6 7l1 13h10l1-13'/><path d='M9 7V4h6v3'/>",
     "borrow": "<path d='M12 5v14'/><path d='M5 12h14'/>",
     "search": "<circle cx='11' cy='11' r='7'/><path d='m20 20-3.5-3.5'/>",
+    "filter": "<path d='M3 5h18l-7 8.5V19l-4 2v-7.5z'/>",
     "loans": "<path d='M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z'/>"
              "<path d='M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z'/>",
     "settings": "<path d='M4 6h10'/><path d='M18 6h2'/><circle cx='16' cy='6' r='2'/>"
@@ -728,9 +729,39 @@ white-space:nowrap}
 .tfilter{
 align-items:center;
 margin-bottom:8px}
-.tfilter input[type=search]{
+.withic{
+position:relative;
+display:flex;
+align-items:center}
+.withic>.ic{
+position:absolute;
+left:9px;
+color:var(--mut);
+pointer-events:none}
+.withic input[type=search]{
+width:100%;
+padding-left:32px}
+.tfilter .withic{
 flex:1;
 min-width:160px}
+header .hsearch{
+flex:1;
+display:flex;
+gap:6px;
+max-width:360px;
+margin:0}
+header .hsearch .withic{
+flex:1;
+min-width:0}
+header .hsearch input[type=search]{
+padding-top:6px;
+padding-bottom:6px}
+header h1 a{
+display:flex;
+align-items:center;
+gap:8px;
+color:inherit;
+text-decoration:none}
 .only-sm{
 display:none}
 @media (max-width:600px){
@@ -874,7 +905,12 @@ margin-left:0;
 width:100%;
 gap:18px}
 header .theme{
+order:1;
 margin-left:auto}
+header .hsearch{
+order:2;
+max-width:none;
+flex-basis:100%}
 .cardhead form{
 margin-left:0}
 .actions button span{
@@ -887,18 +923,43 @@ def esc(v):
     return html.escape(str(v if v is not None else ""))
 
 
-def page(t, title, body, path="/", refresh=None):
+def header_search(t, query="", kind="ebook"):
+    """Catalogue search box in the header (Enter searches)."""
+    return ("<form method='get' action='/search' class='hsearch' role='search'>"
+            "<span class='withic'>%s<input type='search' name='q' value='%s' required "
+            "placeholder='%s' aria-label='%s'></span>"
+            "<input type='hidden' name='kind' value='%s'></form>" % (
+                icon("search"), esc(query), esc(t("search.placeholder")),
+                esc(t("btn.search")), esc(kind)))
+
+
+# The header title switches between the loans and the last search: on the
+# loans page it opens the last search (localStorage "neknihy.lastsearch",
+# saved by the search page), or puts the cursor in the search box when there
+# is none; elsewhere it leads to the loans.
+BRAND_JS = """<script>(function(){var a=document.getElementById('brand');
+if(location.pathname==='/search'){try{localStorage.setItem('neknihy.lastsearch',
+location.pathname+location.search);}catch(e){}return;}
+if(location.pathname!=='/')return;
+a.addEventListener('click',function(e){var s=null;
+try{s=localStorage.getItem('neknihy.lastsearch');}catch(x){}
+if(s&&s.indexOf('/search?')===0){a.href=s;return;}
+e.preventDefault();document.querySelector('.hsearch input[name=q]').focus();});})();</script>"""
+
+
+def page(t, title, body, path="/", refresh=None, query="", kind="ebook"):
     meta = "<meta http-equiv='refresh' content='%d'>" % refresh if refresh else ""
     return ("<!doctype html><html lang='%s'><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width,initial-scale=1'>%s"
             "<title>%s</title><link rel='icon' type='image/png' href='/favicon.png?v=%s'>"
             "<link rel='apple-touch-icon' href='/apple-touch-icon.png?v=%s'>"
             "<style>%s</style><script>%s</script></head><body>"
-            "<header><h1><img src='/icon.png?v=%s' alt=''>Neknihy NextGen</h1><nav>%s</nav>"
+            "<header><h1><a href='/' id='brand' title='%s'><img src='/icon.png?v=%s' alt=''>"
+            "Neknihy NextGen</a></h1>%s<nav>%s</nav>"
             "<button type='button' class='theme' onclick='nkTheme()' %s>%s%s%s</button>"
-            "</header><main>%s</main></body></html>"
+            "</header><main>%s</main>%s</body></html>"
             % (t.lang, meta, esc(title), STATIC_VER, STATIC_VER, CSS, THEME_JS,
-               STATIC_VER, "".join(
+               esc(t("nav.brand")), STATIC_VER, header_search(t, query, kind), "".join(
                 "<a href='%s'%s>%s%s</a>" % (
                     href, " class='on' aria-current='page'" if href == path else "",
                     icon(ic), esc(t(key)))
@@ -906,7 +967,7 @@ def page(t, title, body, path="/", refresh=None):
                    "data-%s='%s: %s'" % (m, esc(t("theme.toggle")), esc(t("theme." + m)))
                    for m in THEMES),
                icon("auto", "ic t-auto"), icon("sun", "ic t-light"), icon("moon", "ic t-dark"),
-               body))
+               body, BRAND_JS))
 
 
 # Theme cycle on the header button; "auto" follows the system setting.
@@ -970,12 +1031,14 @@ def filter_box(t, table_id):
         "<label for='view-%s-%s' title='%s' aria-label='%s'>%s</label>" % (
             table_id, v, table_id, v, " checked" if v == "details" else "", table_id, v,
             esc(t("view." + v)), esc(t("view." + v)), icon("v-" + v)) for v in VIEWS)
-    return ("<div class='actions tfilter'><input type='search' data-for='%s' "
-            "placeholder='%s' aria-label='%s' autocomplete='off'>"
+    return ("<div class='actions tfilter'><span class='withic' title='%s'>%s"
+            "<input type='search' data-for='%s' placeholder='%s' aria-label='%s' "
+            "autocomplete='off'></span>"
             "<span class='mut' data-count='%s' hidden></span>"
             "<span class='seg' role='radiogroup' aria-label='%s' data-view-for='%s'>%s</span>"
             "</div>" % (
-                table_id, esc(t("filter.placeholder")), esc(t("filter.placeholder")),
+                esc(t("filter.placeholder")), icon("filter"),
+                table_id, esc(t("filter.hint")), esc(t("filter.placeholder")),
                 esc(t("filter.count", n="{n}", total="{total}")), esc(t("view.label")),
                 table_id, views))
 
@@ -1066,20 +1129,19 @@ if(!r.ok)throw r;return r.json();}).then(function(d){fill(d,false);next();})
 .catch(function(){fill({},true);});})();});})();</script>"""
 
 
-def search_form(t, query="", kind="ebook"):
+def kind_switch(t, query, kind="ebook"):
+    """What the search looks for (e-books / audiobooks / both); a change
+    searches again (the query itself is typed in the header)."""
     icons = {"ebook": "ebook", "audiobook": "audio", "all": "both"}
     options = "".join(
         "<input type='radio' name='kind' value='%s' id='kind-%s'%s>"
         "<label for='kind-%s' title='%s' aria-label='%s'>%s</label>" % (
             k, k, " checked" if k == kind else "", k, esc(t("kind." + k)),
             esc(t("kind." + k)), icon(icons[k])) for k in katalog.KINDS)
-    return ("<form method='get' action='/search' class='actions'>"
-            "<input type='search' name='q' value='%s' required style='flex:1;min-width:200px' "
-            "placeholder='%s' aria-label='%s'>"
-            "<span class='seg' role='radiogroup' aria-label='%s'>%s</span>"
-            "<button class='primary'>%s<span>%s</span></button></form>" % (
-                esc(query), esc(t("search.placeholder")), esc(t("search.placeholder")),
-                esc(t("kind.label")), options, icon("search"), esc(t("btn.search"))))
+    return ("<form method='get' action='/search' style='margin:0 0 0 auto' "
+            "onchange='this.submit()'><input type='hidden' name='q' value='%s'>"
+            "<span class='seg' role='radiogroup' aria-label='%s'>%s</span></form>" % (
+                esc(query), esc(t("kind.label")), options))
 
 
 def not_configured_hint(t):
@@ -1088,28 +1150,29 @@ def not_configured_hint(t):
         t("borrow.not_configured", settings="\x00")).replace("\x00", link)
 
 
-def render_borrow(svc, t):
-    parts = [search_form(t)]
-    if svc.app.settings.katalog_configured():
-        parts.append(
-            "<details><summary class='mut'>%s</summary>"
+def borrow_by_link(svc, t):
+    """Borrowing by a catalogue link or workId (or why it is not possible)."""
+    if not svc.app.settings.katalog_configured():
+        return not_configured_hint(t)
+    return ("<details><summary class='mut'>%s</summary>"
             "<form method='post' action='/borrow' class='actions' style='margin-top:8px'>"
             "<input type='text' name='work' required style='flex:1;min-width:200px' "
             "placeholder='https://katalog.tsk.sk/…?workId=1439847' aria-label='%s'>"
             "<button>%s<span>%s</span></button></form></details>" % (
                 esc(t("borrow.label")), esc(t("borrow.label")), icon("borrow"),
                 esc(t("btn.borrow"))))
-    else:
-        parts.append(not_configured_hint(t))
-    return "<div class='card'><h2>%s%s</h2>%s</div>" % (
-        icon("search"), esc(t("borrow.title")), "".join(parts))
 
 
 def render_search(svc, t, query, page_no, kind="ebook"):
     app = svc.app
     s = app.settings
-    body = ["<div class='card'><h2>%s%s</h2>%s</div>" % (
-        icon("search"), esc(t("borrow.title")), search_form(t, query, kind))]
+    body = ["<div class='card'><div class='cardhead'><h2>%s%s</h2>%s</div>%s</div>" % (
+        icon("search"), esc(t("borrow.title")), kind_switch(t, query, kind),
+        borrow_by_link(svc, t))]
+
+    def done(html_body):
+        return page(t, "%s – Neknihy NextGen" % t("btn.search"), html_body, "/search",
+                    query=query, kind=kind)
     try:
         res = katalog.search(query, library=s.tsk_library or "vkmr", page=page_no,
                              kind=kind)
@@ -1117,7 +1180,7 @@ def render_search(svc, t, query, page_no, kind="ebook"):
         log.error("Catalogue search failed: %s", e)
         body.append("<div class='card'><p class='st st-pending'>%s%s</p></div>" % (
             icon("warn"), esc(t("search.error", error=e))))
-        return page(t, "%s – Neknihy NextGen" % t("btn.search"), "".join(body), "/")
+        return done("".join(body))
 
     active = [b for b in app.books if b.get("neknihy", {}).get("status") != "expired"]
     # the catalogue links to palmknihy.cz/kniha/<id>, which is often not the
@@ -1178,10 +1241,8 @@ def render_search(svc, t, query, page_no, kind="ebook"):
                          "<a href='/search?q=%s&amp;kind=%s&amp;page=%d'>%d</a>"
                          % (quote(query), quote(res["kind"]), n, n))
         table += "<p class='actions'>%s</p>" % " ".join(links)
-    if not can_borrow:
-        table += not_configured_hint(t)
     body.append("<div class='card'>%s</div>" % table)
-    return page(t, "%s – Neknihy NextGen" % t("btn.search"), "".join(body), "/")
+    return done("".join(body))
 
 
 def render_index(svc, t):
@@ -1240,12 +1301,12 @@ def render_index(svc, t):
             esc(t("await.title", title=aw["title"] or "workId %s" % aw["work_id"])),
             esc(t("await." + aw["state"], s=WAIT_STEP)))
         for aw in list(svc.awaiting))
-    # search on top, then the loans with the actions that work on them
-    body = ("%s%s<div class='card'><div class='cardhead'><h2>%s%s</h2>"
+    # the loans with the actions that work on them (search is in the header)
+    body = ("%s<div class='card'><div class='cardhead'><h2>%s%s</h2>"
             "<form method='post' action='/action' class='actions'>%s</form></div>"
-            "<p class='mut status'>%s</p>%s</div>" % (
-                awaiting, render_borrow(svc, t), icon("loans"), esc(t("nav.loans")),
-                buttons, "<br>".join(status), table))
+            "<p class='mut status'>%s</p>%s%s</div>" % (
+                awaiting, icon("loans"), esc(t("nav.loans")),
+                buttons, "<br>".join(status), table, borrow_by_link(svc, t)))
     busy = svc.running or svc.awaiting
     return page(t, "Neknihy NextGen", body, "/", refresh=PAGE_REFRESH if busy else None)
 
