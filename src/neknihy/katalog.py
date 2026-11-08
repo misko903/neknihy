@@ -411,9 +411,20 @@ class _SearchParser(HTMLParser):
 
 
 def is_audiobook(result):
-    """True for an audiobook ("audioknihy" work type or keyword)."""
-    texts = [result.get("work_type") or ""] + list(result.get("keywords") or [])
-    return any("audio" in t.lower() and "vizu" not in t.lower() for t in texts)
+    """True for an audiobook ("audioknihy" work type).
+
+    The work type decides: the catalogue tags many e-books (work type
+    "E-knihy") with an "Audioknihy" keyword too, as Palmknihy also sells
+    them as audiobooks. Keywords are only a fallback without a work type.
+    """
+    def audio(t):
+        t = t.lower()
+        return "audio" in t and "vizu" not in t
+
+    work_type = (result.get("work_type") or "").strip()
+    if work_type:
+        return audio(work_type)
+    return any(audio(t) for t in result.get("keywords") or [])
 
 
 def parse_search(html):

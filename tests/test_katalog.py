@@ -239,6 +239,19 @@ class Search(unittest.TestCase):
         self.assertFalse(first["audiobook"])
         self.assertFalse(second["audiobook"])
 
+    def test_ebook_with_audiobook_keyword(self):
+        # the catalogue tags many e-books "Audioknihy" too; the work type decides
+        html = RESULT.replace(">Povídky<", ">Audioknihy<")
+        first, _ = katalog.parse_search(html)["results"]
+        self.assertIn("Audioknihy", first["keywords"])
+        self.assertFalse(first["audiobook"])
+        s = mock.Mock()
+        s.get.return_value = resp(text=html)
+        ids = [r["work_id"] for r in katalog.search("x", session=s, kind="ebook")["results"]]
+        self.assertIn(1481396, ids)
+        # without a work type the keywords still tell
+        self.assertTrue(katalog.is_audiobook({"work_type": "", "keywords": ["Audioknihy"]}))
+
     def test_search_audiobooks_area(self):
         s = mock.Mock()
         s.get.return_value = resp(text=AUDIO_RESULT)
