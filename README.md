@@ -7,19 +7,19 @@ for Audiobookshelf and returns loans with one click. It runs as a desktop
 app or headless in Docker with a web interface in Czech, Slovak, English
 and German. Most of the documentation below is in Czech.
 
-Neknihy NextGen spravuje výpůjčky e-knih a audioknih z knihoven, které
-půjčují přes Palmknihy:
+Neknihy NextGen spravuje výpožičky e-kníh a audiokníh z knižníc, ktoré
+požičiavajú cez Palmknihy:
 
-- stáhne vypůjčené e-knihy i audioknihy a synchronizuje je se čtečkou
-  nebo s ingest složkou Calibre-Web,
-- audioknihy ukládá jako `Autor/Název`, takže se hodí pro Audiobookshelf,
-- vyhledá a vypůjčí knihy přímo z katalogu knihovny (katalog.tsk.sk),
-- výpůjčky vrací jedním tlačítkem a prošlé knihy smaže i ze čtečky,
-- běží jako desktopová aplikace nebo v Dockeru (např. na NAS)
-  s webovým rozhraním a automatickým obnovováním v nastaveném intervalu.
+- stiahne vypožičané e-knihy aj audioknihy a synchronizuje ich s čítačkou
+  alebo s ingest priečinkom Calibre-Web,
+- audioknihy ukladá ako `Autor/Názov`, takže sa hodia pre Audiobookshelf,
+- vyhľadá a vypožičia knihy priamo z katalógu knižnice (katalog.tsk.sk),
+- výpožičky vracia jedným tlačidlom a prepadnuté knihy zmaže aj z čítačky,
+- beží ako desktopová aplikácia alebo v Dockeri (napr. na NAS)
+  s webovým rozhraním a automatickým obnovovaním v nastavenom intervale.
 
-Projekt vychází z původních [Neknihy](https://github.com/thalman/neknihy)
-od Tomáše Halmana.
+Projekt vychádza z pôvodných [Neknihy](https://github.com/thalman/neknihy)
+od Tomáša Halmana.
 
 ## Motivace
 
