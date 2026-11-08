@@ -245,8 +245,16 @@ class Search(unittest.TestCase):
         data = katalog.search("x", library="vkmr", session=s, kind="audiobook")
         self.assertEqual(s.get.call_args[1]["params"]["area"], 702)
         self.assertEqual(data["kind"], "audiobook")
-        katalog.search("x", library="vkmr", session=s, kind="all")
-        self.assertEqual(s.get.call_args[1]["params"]["area"], -1)
+        s.get.reset_mock()
+        s.get.return_value = resp(text=RESULT + AUDIO_RESULT)
+        data = katalog.search("x", library="vkmr", session=s, kind="all")
+        self.assertEqual([c[1]["params"]["area"] for c in s.get.call_args_list], [701, 702])
+        # the same work from both areas is listed once
+        self.assertEqual(len(data["results"]), 3)
+        s.get.return_value = resp(text=RESULT + AUDIO_RESULT)
+        ids = [r["work_id"] for r in katalog.search(
+            "x", library="vkmr", session=s, kind="ebook")["results"]]
+        self.assertNotIn(1452934, ids)  # audiobook in the e-book area is left out
         katalog.search("x", library="vkmr", session=s, kind="nonsense")
         self.assertEqual(s.get.call_args[1]["params"]["area"], 701)
 

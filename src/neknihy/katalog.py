@@ -440,33 +440,54 @@ def search(query, library="vkmr", ebooks_only=True, page=1, page_size=PAGE_SIZE,
     """
     library = library or "vkmr"
     kind = kind if kind in KINDS else "ebook"
-    if not ebooks_only or kind == "all":
-        area = AREA_ALL
+    if not ebooks_only:
+        areas = [AREA_ALL]
+    elif kind == "all" and library in EBOOK_AREAS and library in AUDIOBOOK_AREAS:
+        # "both": the e-book and the audiobook area together; searching the
+        # whole collection would bury them among printed books
+        areas = [EBOOK_AREAS[library], AUDIOBOOK_AREAS[library]]
     elif kind == "audiobook":
-        area = AUDIOBOOK_AREAS.get(library, AREA_ALL)
+        areas = [AUDIOBOOK_AREAS.get(library, AREA_ALL)]
+    elif kind == "ebook":
+        areas = [EBOOK_AREAS.get(library, AREA_ALL)]
     else:
-        area = EBOOK_AREAS.get(library, AREA_ALL)
-    params = {"field": 0, "q": query, "area": area, "allsrc": "on",
-              "pageSize": page_size, "page": page}
+        areas = [AREA_ALL]
     own = session is None
     s = session or requests.Session()
     if own:
         s.headers.update({"User-Agent": USER_AGENT})
+    url = "%s/library/%s/search" % (base_url.rstrip("/"), library)
+    parts = []
     try:
-        r = get_checked(s, "%s/library/%s/search" % (base_url.rstrip("/"), library),
-                        base_url, timeout, params=params)
-        r.raise_for_status()
+        for area in areas:
+            params = {"field": 0, "q": query, "area": area, "allsrc": "on",
+                      "pageSize": page_size, "page": page}
+            r = get_checked(s, url, base_url, timeout, params=params)
+            r.raise_for_status()
+            parts.append(parse_search(r.text))
     finally:
         if own:
             s.close()
-    data = parse_search(r.text)
-    if ebooks_only and area == AREA_ALL:
-        # the whole collection was searched: keep what fits ``kind``
-        keep = {"ebook": lambda x: x["ebook"] and not x["audiobook"],
-                "audiobook": lambda x: x["ebook"] and x["audiobook"],
-                "all": lambda x: x["ebook"]}[kind]
-        data["results"] = [x for x in data["results"] if keep(x)]
-    data.update(query=query, kind=kind, page=page,
-                pages=max(1, -(-data["total"] // page_size)))
+    seen = set()
+    results = []
+    for part in parts:
+        for x in part["results"]:
+            if x["work_id"] not in seen:
+                seen.add(x["work_id"])
+                results.append(x)
+    if ebooks_only:
+        # keep what fits ``kind``; the e-book area holds some audiobooks too,
+        # the whole collection (AREA_ALL) printed books as well
+        wide = AREA_ALL in areas
+        keep = {"ebook": lambda x: not x["audiobook"],
+                "audiobook": lambda x: x["audiobook"],
+                "all": lambda x: True}[kind]
+        results = [x for x in results if keep(x) and (x["ebook"] or not wide)]
+    total = sum(p["total"] for p in parts)
+    pages = max(max(1, -(-p["total"] // page_size)) for p in parts)
+    if pages == 1:
+        total = len(results)  # everything is on this page: the exact count
+    data = {"total": total, "results": results, "query": query, "kind": kind,
+            "page": page, "pages": pages}
     log.info("Catalogue search '%s': %d of %d", query, len(data["results"]), data["total"])
     return data
