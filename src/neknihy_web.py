@@ -561,6 +561,17 @@ align-items:center;
 margin-top:12px;
 color:var(--fg);
 font-size:15px}
+.hint{
+display:block;
+margin-top:4px;
+font-size:12px;
+color:var(--mut)}
+.set h2{
+font-size:15px;
+color:var(--fg);
+margin-bottom:4px}
+.set label:first-of-type{
+margin-top:0}
 @media (max-width:600px){
 .hide-sm{
 display:none}
@@ -1161,44 +1172,55 @@ def library_select(choice):
 
 def render_settings(svc, t, lang_choice="auto"):
     s = svc.app.settings
-    body = """<div class='card'><form method='post' action='/settings'>
-<label for='lang'>%s%s</label>%s
-<label>%s</label><input type='email' name='email' value='%s' required>
-<label>%s %s</label><input type='password' name='password' autocomplete='new-password'>
-<label>%s</label><input type='text' name='workdir' value='%s'>
-<label>%s</label>
-<input type='text' name='readerdir' value='%s'>
-<div class='chk'><input type='checkbox' name='ingest' id='ig'%s>
-<label for='ig' style='margin:0'>%s</label></div>
-<label>%s</label>
-<input type='text' name='audiodir' value='%s' placeholder='%s'>
-<label>%s</label>
-<input type='number' min='0' name='interval_h' value='%d'>
-<div class='chk'><input type='checkbox' name='auto_return' id='ar'%s>
-<label for='ar' style='margin:0'>%s</label></div>
-<div class='chk'><input type='checkbox' name='convert' id='cv'%s>
-<label for='cv' style='margin:0'>%s</label></div>
-<label>%s</label><input type='text' name='convertor' value='%s'>
-<h2 style='margin-top:20px'>%s%s</h2>
-<label>%s</label><input type='text' name='tsk_username' value='%s' autocomplete='off'>
-<label>%s %s</label><input type='password' name='tsk_password' autocomplete='new-password'>
-<label for='tsk_library'>%s</label>%s
-<p><button class='primary'>%s%s</button></p></form></div>""" % (
-        icon("lang"), esc(t("nav.language")), language_select(t, lang_choice),
-        esc(t("set.email")), esc(s.email),
-        esc(t("set.password")), esc(t("set.password_keep")) if s.password else "",
-        esc(t("set.workdir")), esc(s.workdir),
-        esc(t("set.readerdir")), esc(s.readerdir),
-        " checked" if svc.web.get("ingest") else "", esc(t("set.ingest")),
-        esc(t("set.audiodir")), esc(s.audiodir), esc(AUDIOBOOKSHELF_DIRS[0]),
-        esc(t("set.interval")), svc.web["interval"] // 3600,
-        " checked" if svc.web["auto_return"] else "", esc(t("set.auto_return")),
-        " checked" if s.convert == "1" else "", esc(t("set.convert")),
-        esc(t("set.convertor")), esc(s.convertor),
-        icon("borrow"), esc(t("set.tsk")),
-        esc(t("set.tsk_username")), esc(s.tsk_username),
-        esc(t("set.password")), esc(t("set.password_keep")) if s.tsk_password else "",
-        esc(t("set.tsk_library")), library_select(s.tsk_library),
+
+    def section(ico, title, inner):
+        return "<div class='card set'><h2>%s%s</h2>%s</div>" % (icon(ico), esc(t(title)), inner)
+
+    def field(key, control, hint=None):
+        return "<label>%s%s</label>%s" % (
+            esc(t(key)), control,
+            "<small class='hint'>%s</small>" % esc(t(hint)) if hint else "")
+
+    def text(name, value, kind="text", extra=""):
+        return " <input type='%s' name='%s' value='%s'%s>" % (kind, name, esc(value), extra)
+
+    def password(name, is_set):
+        ph = " placeholder='%s'" % esc(t("set.password_keep")) if is_set else ""
+        return " <input type='password' name='%s' autocomplete='new-password'%s>" % (name, ph)
+
+    def check(name, checked, key):
+        return ("<label class='chk'><input type='checkbox' name='%s'%s>%s</label>"
+                % (name, " checked" if checked else "", esc(t(key))))
+
+    general = "<label>%s%s</label>" % (esc(t("nav.language")), language_select(t, lang_choice))
+    account = (field("set.email", text("email", s.email, "email", " required"))
+               + field("set.password", password("password", s.password)))
+    folders = (field("set.workdir", text("workdir", s.workdir))
+               + field("set.readerdir", text("readerdir", s.readerdir), "set.readerdir_hint")
+               + check("ingest", svc.web.get("ingest"), "set.ingest")
+               + field("set.audiodir",
+                       text("audiodir", s.audiodir,
+                            extra=" placeholder='%s'" % esc(AUDIOBOOKSHELF_DIRS[0])),
+                       "set.audiodir_hint"))
+    auto = (field("set.interval",
+                  text("interval_h", svc.web["interval"] // 3600, "number", " min='0'"),
+                  "set.interval_hint")
+            + check("auto_return", svc.web["auto_return"], "set.auto_return"))
+    convert = (check("convert", s.convert == "1", "set.convert")
+               + field("set.convertor", text("convertor", s.convertor)))
+    tsk = (field("set.tsk_library", library_select(s.tsk_library))
+           + field("set.tsk_username",
+                   text("tsk_username", s.tsk_username, extra=" autocomplete='off'"),
+                   "set.tsk_username_hint")
+           + field("set.password", password("tsk_password", s.tsk_password)))
+    body = ("<form method='post' action='/settings'>%s%s%s%s%s%s"
+            "<p><button class='primary'>%s%s</button></p></form>") % (
+        section("settings", "set.sec_general", general),
+        section("download", "set.sec_account", account),
+        section("ebook", "set.sec_folders", folders),
+        section("pending", "set.sec_auto", auto),
+        section("loans", "set.tsk", tsk),
+        section("refresh", "set.sec_convert", convert),
         icon("ok"), esc(t("set.save")))
     return page(t, "%s – Neknihy" % t("title.settings"), body, "/settings")
 
