@@ -1,5 +1,5 @@
 from neknihy import katalog
-from neknihy.api import API, isAudiobook, webId
+from neknihy.api import API, catalogueIds, isAudiobook, webId
 from neknihy.katalog import KatalogTSK
 from neknihy.settings import Settings
 
@@ -103,34 +103,40 @@ class App():
         self.updateStatus()
 
     def findWebIds(self):
-        """Look up audiobook loans in the library catalogue.
+        """Look up loans in the library catalogue.
 
-        Their cover URL does not carry the palmknihy.cz ID (see api.webId),
-        but the catalogue links each audiobook to palmknihy.cz/kniha/<id>;
-        it also names only the real author(s), while Palmknihy lists
-        translators and other contributors as authors too. Matched by title,
+        The catalogue names only the real author(s), while Palmknihy lists
+        translators and other contributors as authors too. Audiobook cover
+        URLs also do not carry the palmknihy.cz ID (see api.webId), but the
+        catalogue links each book to palmknihy.cz/kniha/<id>. Matched by title,
         and by author when several titles match. A loan that was looked up
         is not searched again; a failed search is retried next time.
         """
         for book in self.books:
             info = book.get("neknihy")
-            if (not isAudiobook(book) or info is None or "authors" in info or
-                    not book.get("title")):
+            if info is None or "authors" in info or not book.get("title"):
                 continue
+            audio = isAudiobook(book)
             try:
                 res = katalog.search(book["title"], library=self.settings.tsk_library or "vkmr",
-                                     kind="audiobook", timeout=15)
+                                     kind="audiobook" if audio else "ebook", timeout=15)
             except Exception as e:
-                log.info("Audiobook %s not found in the catalogue: %s", book["title"], e)
+                log.info("%s not found in the catalogue: %s", book["title"], e)
                 continue
             match = self._matchCatalogue(book, res.get("results", []))
-            if "web_id" not in info and webId(book) is None:
+            if audio and "web_id" not in info and webId(book) is None:
                 info["web_id"] = match["palm_id"] if match else None
             info["authors"] = [catalogueName(a) for a in match.get("authors", [])]                 if match else []
 
     def _matchCatalogue(self, book, results):
+        audio = isAudiobook(book)
+        ids = catalogueIds(book)
+        by_id = [r for r in results if r.get("palm_id") in ids]
+        if by_id:
+            return by_id[0]
         title = book["title"].strip().casefold()
-        same = [r for r in results if r.get("palm_id") and r.get("audiobook", True) and
+        same = [r for r in results if r.get("palm_id") and
+                bool(r.get("audiobook", audio)) == audio and
                 (r.get("title") or "").strip().casefold() == title]
         if len(same) > 1:
             surnames = {(p.get("author") or {}).get("surname", "").casefold()

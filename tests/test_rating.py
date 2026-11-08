@@ -125,9 +125,26 @@ class FindWebIdsTest(unittest.TestCase):
         with mock.patch("neknihy.app.katalog.search", return_value=res) as search:
             self.app.findWebIds()
             self.app.findWebIds()  # already known: not searched again
-        search.assert_called_once()
-        self.assertEqual(search.call_args.kwargs["kind"], "audiobook")
+        # each loan once: the audiobook as an audiobook, the e-book as an e-book
+        self.assertEqual([(c.args[0], c.kwargs["kind"]) for c in search.call_args_list],
+                         [("Třináct záhad", "audiobook"), ("X", "ebook")])
         self.assertEqual(webId(self.book), 401774)
+
+    def test_ebook_authors_matched_by_id(self):
+        ebook = {"palm_id": 429088, "item_type": "ebook", "title": "Vianočné detektívky",
+                 "persons": [{"type": "author", "author": {"firstname": "Eva",
+                                                           "surname": "Baloghová"}}],
+                 "neknihy": {"status": "ok"}}
+        self.app.books = [ebook]
+        res = {"results": [
+            dict(title="Vianočné detektívky", palm_id=1, audiobook=False, authors=["Iný, Autor"]),
+            dict(title="Vianočné detektívky", palm_id=429088, audiobook=False,
+                 authors=["Doyle, Arthur Conan", "Austin Freeman, Richard"])]}
+        with mock.patch("neknihy.app.katalog.search", return_value=res):
+            self.app.findWebIds()
+        self.assertEqual(self.app.bookAuthors(ebook),
+                         "Arthur Conan Doyle, Richard Austin Freeman")
+        self.assertNotIn("web_id", ebook["neknihy"])
 
     def test_authors_from_catalogue(self):
         self.book["persons"] += [{"type": "author",
