@@ -25,6 +25,7 @@ borrowing e-books in the library catalogue (katalog.tsk.sk).
 
 import base64
 import collections
+import hashlib
 import hmac
 import html
 import json
@@ -445,6 +446,22 @@ STATIC = {"/favicon.ico": "icon-32.png", "/favicon.png": "icon-32.png",
           "/icon.png": "icon-64.png", "/apple-touch-icon.png": "icon-180.png"}
 
 
+def _static_version():
+    """Short hash of the icon files. It goes into their URLs, so a browser
+    fetches a changed icon at once instead of keeping its cached copy."""
+    digest = hashlib.sha1()
+    for name in sorted(set(STATIC.values())):
+        try:
+            with open(os.path.join(STATIC_DIR, name), "rb") as f:
+                digest.update(f.read())
+        except OSError:
+            pass
+    return digest.hexdigest()[:8]
+
+
+STATIC_VER = _static_version()
+
+
 CSS = """
 :root{
 --bg:#f6f5f2;
@@ -486,7 +503,7 @@ header{
 display:flex;
 align-items:center;
 gap:16px;
-padding:14px 16px;
+padding:14px max(16px,calc((100% - 960px)/2 + 16px));
 border-bottom:1px solid var(--line)}
 header h1{
 font-size:18px;
@@ -724,6 +741,7 @@ display:block}
 font-weight:600}
 .theme{
 padding:6px;
+margin-right:-6px;
 border:0;
 background:none;
 color:var(--mut)}
@@ -855,6 +873,8 @@ order:3;
 margin-left:0;
 width:100%;
 gap:18px}
+header .theme{
+margin-left:auto}
 .cardhead form{
 margin-left:0}
 .actions button span{
@@ -871,13 +891,14 @@ def page(t, title, body, path="/", refresh=None):
     meta = "<meta http-equiv='refresh' content='%d'>" % refresh if refresh else ""
     return ("<!doctype html><html lang='%s'><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width,initial-scale=1'>%s"
-            "<title>%s</title><link rel='icon' type='image/png' href='/favicon.png'>"
-            "<link rel='apple-touch-icon' href='/apple-touch-icon.png'>"
+            "<title>%s</title><link rel='icon' type='image/png' href='/favicon.png?v=%s'>"
+            "<link rel='apple-touch-icon' href='/apple-touch-icon.png?v=%s'>"
             "<style>%s</style><script>%s</script></head><body>"
-            "<header><h1><img src='/icon.png' alt=''>Neknihy NextGen</h1><nav>%s</nav>"
+            "<header><h1><img src='/icon.png?v=%s' alt=''>Neknihy NextGen</h1><nav>%s</nav>"
             "<button type='button' class='theme' onclick='nkTheme()' %s>%s%s%s</button>"
             "</header><main>%s</main></body></html>"
-            % (t.lang, meta, esc(title), CSS, THEME_JS, "".join(
+            % (t.lang, meta, esc(title), STATIC_VER, STATIC_VER, CSS, THEME_JS,
+               STATIC_VER, "".join(
                 "<a href='%s'%s>%s%s</a>" % (
                     href, " class='on' aria-current='page'" if href == path else "",
                     icon(ic), esc(t(key)))
