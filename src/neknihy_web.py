@@ -615,8 +615,10 @@ align-items:flex-start}
 .bk .cover{
 flex:none}
 .kind{
-white-space:nowrap;
-font-size:13px}
+display:inline-flex}
+.kind .ic{
+width:22px;
+height:22px}
 .kind.audio{
 color:var(--acc)}
 .tag{
@@ -824,9 +826,9 @@ def sort_th(label, kind="text", cls="", first="asc"):
 def kind_cell(t, audio):
     """Cell saying whether a title is an e-book or an audiobook."""
     label = t("kind.audio_tag" if audio else "kind.ebook_tag")
-    return ("<td data-v='%s' title='%s'><span class='st kind%s'>%s<span class='hide-sm'>%s"
-            "</span></span></td>" % (esc(label), esc(label), " audio" if audio else "",
-                                     icon("audio" if audio else "ebook"), esc(label)))
+    return ("<td data-v='%s' title='%s' aria-label='%s'><span class='kind%s'>%s</span></td>"
+            % (esc(label), esc(label), esc(label), " audio" if audio else "",
+               icon("audio" if audio else "ebook")))
 
 
 def filter_box(t, table_id):
