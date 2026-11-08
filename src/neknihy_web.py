@@ -395,6 +395,8 @@ _ICON_PATHS = {
     "borrow": "<path d='M12 5v14'/><path d='M5 12h14'/>",
     "search": "<circle cx='11' cy='11' r='7'/><path d='m20 20-3.5-3.5'/>",
     "filter": "<path d='M3 5h18l-7 8.5V19l-4 2v-7.5z'/>",
+    "more": "<circle cx='12' cy='5' r='1'/><circle cx='12' cy='12' r='1'/>"
+            "<circle cx='12' cy='19' r='1'/>",
     "loans": "<path d='M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z'/>"
              "<path d='M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z'/>",
     "settings": "<path d='M4 6h10'/><path d='M18 6h2'/><circle cx='16' cy='6' r='2'/>"
@@ -756,6 +758,60 @@ min-width:0}
 header .hsearch input[type=search]{
 padding-top:6px;
 padding-bottom:6px}
+header .hsearch input[type=search]{
+padding-right:100px}
+header .hsearch .seg{
+position:absolute;
+right:3px;
+top:3px;
+bottom:3px;
+border:0;
+border-radius:6px}
+header .hsearch .seg label{
+padding:0 6px}
+header .hsearch .seg label+label{
+border-left:0}
+header .hsearch .seg .ic{
+width:18px;
+height:18px}
+.menu{
+position:relative}
+.menu summary{
+list-style:none;
+margin:0;
+padding:6px;
+border-radius:8px;
+color:var(--mut);
+display:flex}
+.menu summary::-webkit-details-marker{
+display:none}
+.menu summary:hover,.menu[open] summary{
+color:var(--fg);
+background:var(--line)}
+.menu .pop{
+position:absolute;
+z-index:10;
+top:calc(100% + 6px);
+left:0;
+width:min(420px,calc(100vw - 32px));
+background:var(--card);
+border:1px solid var(--line);
+border-radius:10px;
+padding:12px;
+box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.menu .pop label{
+margin-top:0}
+.menu .pop p{
+margin:0}
+.icbtn{
+display:inline-flex;
+padding:6px;
+color:var(--mut);
+text-decoration:none}
+.icbtn:hover,.icbtn.on{
+color:var(--fg)}
+.icbtn.on{
+color:var(--acc)}
 header h1 a{
 display:flex;
 align-items:center;
@@ -907,10 +963,20 @@ gap:18px}
 header .theme{
 order:1;
 margin-left:auto}
+header .icbtn{
+order:1;
+margin-left:auto}
+header .icbtn+.theme{
+margin-left:0}
 header .hsearch{
 order:2;
 max-width:none;
-flex-basis:100%}
+flex:1 1 calc(100% - 50px)}
+header .menu{
+order:2}
+header .menu .pop{
+left:auto;
+right:0}
 .cardhead form{
 margin-left:0}
 .actions button span{
@@ -923,21 +989,50 @@ def esc(v):
     return html.escape(str(v if v is not None else ""))
 
 
+KIND_ICONS = {"ebook": "ebook", "audiobook": "audio", "all": "both"}
+
+
 def header_search(t, query="", kind="ebook"):
-    """Catalogue search box in the header (Enter searches)."""
-    return ("<form method='get' action='/search' class='hsearch' role='search'>"
+    """Catalogue search box in the header: Enter searches, the e-book /
+    audiobook / both switch inside it searches again when there is a query."""
+    options = "".join(
+        "<input type='radio' name='kind' value='%s' id='kind-%s'%s>"
+        "<label for='kind-%s' title='%s' aria-label='%s'>%s</label>" % (
+            k, k, " checked" if k == kind else "", k, esc(t("kind." + k)),
+            esc(t("kind." + k)), icon(KIND_ICONS[k])) for k in katalog.KINDS)
+    return ("<form method='get' action='/search' class='hsearch' role='search' "
+            "onchange='if(this.q.value.trim())this.submit()'>"
             "<span class='withic'>%s<input type='search' name='q' value='%s' required "
-            "placeholder='%s' aria-label='%s'></span>"
-            "<input type='hidden' name='kind' value='%s'></form>" % (
+            "placeholder='%s' aria-label='%s'>"
+            "<span class='seg' role='radiogroup' aria-label='%s'>%s</span></span></form>" % (
                 icon("search"), esc(query), esc(t("search.placeholder")),
-                esc(t("btn.search")), esc(kind)))
+                esc(t("btn.search")), esc(t("kind.label")), options))
+
+
+def header_menu(svc, t):
+    """⋮ menu next to the search: borrowing by a catalogue link or workId."""
+    if svc is None or svc.app.settings.katalog_configured():
+        inner = ("<form method='post' action='/borrow'><label for='work'>%s</label>"
+                 "<div class='actions'><input type='text' name='work' id='work' required "
+                 "style='flex:1;min-width:0' placeholder='https://katalog.tsk.sk/…?workId=1439847'>"
+                 "<button class='primary'>%s<span>%s</span></button></div></form>" % (
+                     esc(t("borrow.label")), icon("borrow"), esc(t("btn.borrow"))))
+    else:
+        inner = not_configured_hint(t)
+    return ("<details class='menu'><summary title='%s' aria-label='%s'>%s</summary>"
+            "<div class='pop'>%s</div></details>" % (
+                esc(t("nav.more")), esc(t("nav.more")), icon("more"), inner))
 
 
 # The header title switches between the loans and the last search: on the
 # loans page it opens the last search (localStorage "neknihy.lastsearch",
 # saved by the search page), or puts the cursor in the search box when there
-# is none; elsewhere it leads to the loans.
-BRAND_JS = """<script>(function(){var a=document.getElementById('brand');
+# is none; elsewhere it leads to the loans. A click outside the ⋮ menu
+# closes it.
+BRAND_JS = """<script>document.addEventListener('click',function(e){
+document.querySelectorAll('details.menu[open]').forEach(function(d){
+if(!d.contains(e.target))d.removeAttribute('open');});});
+(function(){var a=document.getElementById('brand');
 if(location.pathname==='/search'){try{localStorage.setItem('neknihy.lastsearch',
 location.pathname+location.search);}catch(e){}return;}
 if(location.pathname!=='/')return;
@@ -947,7 +1042,19 @@ if(s&&s.indexOf('/search?')===0){a.href=s;return;}
 e.preventDefault();document.querySelector('.hsearch input[name=q]').focus();});})();</script>"""
 
 
-def page(t, title, body, path="/", refresh=None, query="", kind="ebook"):
+def nav_tabs(t, path):
+    """Header tabs; on the search page the loans tab shows the found titles."""
+    tabs = TABS
+    if path == "/search":
+        tabs = (("/search", "search", "nav.found"),) + TABS[1:]
+    return "".join(
+        "<a href='%s'%s>%s%s</a>" % (
+            href, " class='on' aria-current='page'" if href == path else "",
+            icon(ic), esc(t(key)))
+        for href, ic, key in tabs)
+
+
+def page(t, title, body, path="/", refresh=None, query="", kind="ebook", svc=None):
     meta = "<meta http-equiv='refresh' content='%d'>" % refresh if refresh else ""
     return ("<!doctype html><html lang='%s'><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width,initial-scale=1'>%s"
@@ -955,15 +1062,17 @@ def page(t, title, body, path="/", refresh=None, query="", kind="ebook"):
             "<link rel='apple-touch-icon' href='/apple-touch-icon.png?v=%s'>"
             "<style>%s</style><script>%s</script></head><body>"
             "<header><h1><a href='/' id='brand' title='%s'><img src='/icon.png?v=%s' alt=''>"
-            "Neknihy NextGen</a></h1>%s<nav>%s</nav>"
+            "Neknihy NextGen</a></h1>%s%s<nav>%s</nav>"
+            "<a href='/settings' class='icbtn%s' title='%s' aria-label='%s'%s>%s</a>"
             "<button type='button' class='theme' onclick='nkTheme()' %s>%s%s%s</button>"
             "</header><main>%s</main>%s</body></html>"
             % (t.lang, meta, esc(title), STATIC_VER, STATIC_VER, CSS, THEME_JS,
-               esc(t("nav.brand")), STATIC_VER, header_search(t, query, kind), "".join(
-                "<a href='%s'%s>%s%s</a>" % (
-                    href, " class='on' aria-current='page'" if href == path else "",
-                    icon(ic), esc(t(key)))
-                for href, ic, key in TABS), " ".join(
+               esc(t("nav.brand")), STATIC_VER, header_search(t, query, kind),
+               header_menu(svc, t), nav_tabs(t, path),
+               " on" if path == "/settings" else "", esc(t("nav.settings")),
+               esc(t("nav.settings")),
+               " aria-current='page'" if path == "/settings" else "", icon("settings"),
+               " ".join(
                    "data-%s='%s: %s'" % (m, esc(t("theme.toggle")), esc(t("theme." + m)))
                    for m in THEMES),
                icon("auto", "ic t-auto"), icon("sun", "ic t-light"), icon("moon", "ic t-dark"),
@@ -994,8 +1103,7 @@ THEME_JS = (
 
 
 # Navigation tabs: (path, icon, label key)
-TABS = (("/", "loans", "nav.loans"), ("/settings", "settings", "nav.settings"),
-        ("/log", "log", "log.title"))
+TABS = (("/", "loans", "nav.loans"), ("/log", "log", "log.title"))
 
 
 def fmt_date(t, value):
@@ -1129,50 +1237,20 @@ if(!r.ok)throw r;return r.json();}).then(function(d){fill(d,false);next();})
 .catch(function(){fill({},true);});})();});})();</script>"""
 
 
-def kind_switch(t, query, kind="ebook"):
-    """What the search looks for (e-books / audiobooks / both); a change
-    searches again (the query itself is typed in the header)."""
-    icons = {"ebook": "ebook", "audiobook": "audio", "all": "both"}
-    options = "".join(
-        "<input type='radio' name='kind' value='%s' id='kind-%s'%s>"
-        "<label for='kind-%s' title='%s' aria-label='%s'>%s</label>" % (
-            k, k, " checked" if k == kind else "", k, esc(t("kind." + k)),
-            esc(t("kind." + k)), icon(icons[k])) for k in katalog.KINDS)
-    return ("<form method='get' action='/search' style='margin:0 0 0 auto' "
-            "onchange='this.submit()'><input type='hidden' name='q' value='%s'>"
-            "<span class='seg' role='radiogroup' aria-label='%s'>%s</span></form>" % (
-                esc(query), esc(t("kind.label")), options))
-
-
 def not_configured_hint(t):
     link = "<a href='/settings'>%s</a>" % esc(t("settings_link"))
     return "<p class='mut'>%s</p>" % esc(
         t("borrow.not_configured", settings="\x00")).replace("\x00", link)
 
 
-def borrow_by_link(svc, t):
-    """Borrowing by a catalogue link or workId (or why it is not possible)."""
-    if not svc.app.settings.katalog_configured():
-        return not_configured_hint(t)
-    return ("<details><summary class='mut'>%s</summary>"
-            "<form method='post' action='/borrow' class='actions' style='margin-top:8px'>"
-            "<input type='text' name='work' required style='flex:1;min-width:200px' "
-            "placeholder='https://katalog.tsk.sk/…?workId=1439847' aria-label='%s'>"
-            "<button>%s<span>%s</span></button></form></details>" % (
-                esc(t("borrow.label")), esc(t("borrow.label")), icon("borrow"),
-                esc(t("btn.borrow"))))
-
-
 def render_search(svc, t, query, page_no, kind="ebook"):
     app = svc.app
     s = app.settings
-    body = ["<div class='card'><div class='cardhead'><h2>%s%s</h2>%s</div>%s</div>" % (
-        icon("search"), esc(t("borrow.title")), kind_switch(t, query, kind),
-        borrow_by_link(svc, t))]
+    body = []
 
     def done(html_body):
         return page(t, "%s – Neknihy NextGen" % t("btn.search"), html_body, "/search",
-                    query=query, kind=kind)
+                    query=query, kind=kind, svc=svc)
     try:
         res = katalog.search(query, library=s.tsk_library or "vkmr", page=page_no,
                              kind=kind)
@@ -1241,6 +1319,8 @@ def render_search(svc, t, query, page_no, kind="ebook"):
                          "<a href='/search?q=%s&amp;kind=%s&amp;page=%d'>%d</a>"
                          % (quote(query), quote(res["kind"]), n, n))
         table += "<p class='actions'>%s</p>" % " ".join(links)
+    if not can_borrow:
+        table += not_configured_hint(t)
     body.append("<div class='card'>%s</div>" % table)
     return done("".join(body))
 
@@ -1310,9 +1390,10 @@ def render_index(svc, t):
             "<form method='post' action='/action' class='actions'>%s</form></div>"
             "<p class='mut status'>%s</p>%s%s</div>" % (
                 awaiting, icon("loans"), esc(t("nav.loans")),
-                buttons, "<br>".join(status), table, borrow_by_link(svc, t)))
+                buttons, "<br>".join(status), table, ""))
     busy = svc.running or svc.awaiting
-    return page(t, "Neknihy NextGen", body, "/", refresh=PAGE_REFRESH if busy else None)
+    return page(t, "Neknihy NextGen", body, "/", refresh=PAGE_REFRESH if busy else None,
+                svc=svc)
 
 
 def run_status(svc, t):
@@ -1345,7 +1426,8 @@ def render_log(svc, t):
         "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("empty")))))
     busy = svc.running or svc.awaiting
     return page(t, "%s – Neknihy NextGen" % t("log.title"), body, "/log",
-                refresh=PAGE_REFRESH if busy else None)
+                refresh=PAGE_REFRESH if busy else None,
+                svc=svc)
 
 
 def language_select(t, choice):
@@ -1421,7 +1503,7 @@ def render_settings(svc, t, lang_choice="auto"):
         section("refresh", "set.sec_convert", convert),
         section("pending", "set.sec_auto", auto),
         icon("ok"), esc(t("set.save")))
-    return page(t, "%s – Neknihy NextGen" % t("title.settings"), body, "/settings")
+    return page(t, "%s – Neknihy NextGen" % t("title.settings"), body, "/settings", svc=svc)
 
 
 def make_handler(svc):
@@ -1516,7 +1598,7 @@ def make_handler(svc):
             return i18n.Translator(lang)
 
         def _error(self, t, code, key):
-            self._send(page(t, str(code), "<p>%s</p>" % esc(t(key))), code)
+            self._send(page(t, str(code), "<p>%s</p>" % esc(t(key)), svc=svc), code)
 
         def do_GET(self):
             url = urlparse(self.path)

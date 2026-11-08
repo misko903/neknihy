@@ -4,6 +4,8 @@
   "fmt.datetime": "%Y-%m-%d %H:%M",
   "nav.loans": "Loans",
   "nav.brand": "Switch between loans and search",
+  "nav.found": "Found",
+  "nav.more": "More options",
   "nav.settings": "Settings",
   "nav.language": "Language",
   "title.settings": "Settings",

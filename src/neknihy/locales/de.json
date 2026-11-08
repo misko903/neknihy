@@ -4,6 +4,8 @@
   "fmt.datetime": "%d.%m. %H:%M",
   "nav.loans": "Ausleihen",
   "nav.brand": "Zwischen Ausleihen und Suche wechseln",
+  "nav.found": "Gefunden",
+  "nav.more": "Weitere Optionen",
   "nav.settings": "Einstellungen",
   "nav.language": "Sprache",
   "title.settings": "Einstellungen",

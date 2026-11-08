@@ -4,6 +4,8 @@
   "fmt.datetime": "%d.%m. %H:%M",
   "nav.loans": "Výpůjčky",
   "nav.brand": "Přepnout mezi výpůjčkami a vyhledáváním",
+  "nav.found": "Nalezené",
+  "nav.more": "Další možnosti",
   "nav.settings": "Nastavení",
   "nav.language": "Jazyk",
   "title.settings": "Nastavení",
