@@ -1023,7 +1023,7 @@ def render_settings(svc, t, lang_choice="auto"):
         esc(t("set.workdir")), esc(s.workdir),
         esc(t("set.readerdir")), esc(s.readerdir),
         " checked" if svc.web.get("ingest") else "", esc(t("set.ingest")),
-        esc(t("set.audiodir")), esc(s.audiodir), esc(s.workdir),
+        esc(t("set.audiodir")), esc(s.audiodir), esc(AUDIOBOOKSHELF_DIRS[0]),
         esc(t("set.interval")), svc.web["interval"] // 3600,
         " checked" if svc.web["auto_return"] else "", esc(t("set.auto_return")),
         " checked" if s.convert == "1" else "", esc(t("set.convert")),
