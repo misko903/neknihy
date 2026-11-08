@@ -229,6 +229,24 @@ class Service:
             self.lock.release()
             self.wake.set()
 
+    def delete(self, key):
+        """Delete one loan's file (see App.deleteBook); key is (audiobook, palm_id as text)."""
+        if not self.lock.acquire(blocking=False):
+            log.warning("Another operation is running, try again later")
+            return
+        try:
+            for i, b in enumerate(self.app.books):
+                if (isAudiobook(b), str(b.get("palm_id"))) == key:
+                    title = b.get("title") or b.get("palm_id")
+                    self.app.deleteBook(i)
+                    log.info("Deleted: %s", title)
+                    break
+        except Exception as e:
+            log.error("Delete failed: %s", e)
+            self.last_error = str(e)
+        finally:
+            self.lock.release()
+
     @staticmethod
     def _loan_key(book):
         # e-books and audiobooks have separate palm_id ranges
@@ -371,6 +389,8 @@ _ICON_PATHS = {
     "sync": "<rect x='5' y='2' width='14' height='20' rx='2'/><path d='M9 10l3 3 3-3'/>"
             "<path d='M12 6v7'/><path d='M10 18h4'/>",
     "return": "<path d='M9 14 4 9l5-5'/><path d='M4 9h10.5a5.5 5.5 0 0 1 0 11H11'/>",
+    "delete": "<path d='M4 7h16'/><path d='M10 11v6'/><path d='M14 11v6'/>"
+              "<path d='M6 7l1 13h10l1-13'/><path d='M9 7V4h6v3'/>",
     "borrow": "<path d='M12 5v14'/><path d='M5 12h14'/>",
     "search": "<circle cx='11' cy='11' r='7'/><path d='m20 20-3.5-3.5'/>",
     "loans": "<path d='M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z'/>"
@@ -394,6 +414,7 @@ _ICON_PATHS = {
     "sun": "<circle cx='12' cy='12' r='4'/><path d='M12 2v2'/><path d='M12 20v2'/>"
            "<path d='m4.9 4.9 1.4 1.4'/><path d='m17.7 17.7 1.4 1.4'/><path d='M2 12h2'/>"
            "<path d='M20 12h2'/><path d='m4.9 19.1 1.4-1.4'/><path d='m17.7 6.3 1.4-1.4'/>",
+    "auto": "<circle cx='12' cy='12' r='9'/><path d='M12 3a9 9 0 0 1 0 18z' fill='currentColor'/>",
     "moon": "<path d='M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z'/>",
     "expired": "<circle cx='12' cy='12' r='9'/><path d='m9 9 6 6'/><path d='m15 9-6 6'/>",
     "info": "<circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><path d='M12 8h0'/>",
@@ -544,6 +565,14 @@ font-size:15px}
 .hide-sm{
 display:none}
 }
+form.del{
+margin:0}
+form.del button{
+padding:4px 8px;
+color:var(--mut)}
+form.del button:hover{
+color:#c0392b;
+border-color:#c0392b}
 .ic{
 width:1.1em;
 height:1.1em;
@@ -675,18 +704,12 @@ background:none;
 color:var(--mut)}
 .theme:hover{
 color:var(--fg)}
-.theme .sun{
+.theme .ic{
 display:none}
-@media (prefers-color-scheme:dark){
-:root:not([data-theme=light]) .theme .sun{
+:root:not([data-theme]) .theme .t-auto,
+:root[data-theme=light] .theme .t-light,
+:root[data-theme=dark] .theme .t-dark{
 display:inline}
-:root:not([data-theme=light]) .theme .moon{
-display:none}
-}
-:root[data-theme=dark] .theme .sun{
-display:inline}
-:root[data-theme=dark] .theme .moon{
-display:none}
 .seg{
 display:inline-flex;
 border:1px solid var(--line);
@@ -746,26 +769,38 @@ def page(t, title, body, path="/", refresh=None):
             "<link rel='apple-touch-icon' href='/apple-touch-icon.png'>"
             "<style>%s</style><script>%s</script></head><body>"
             "<header><h1><img src='/icon.png' alt=''>Neknihy</h1><nav>%s</nav>"
-            "<button type='button' class='theme' onclick='nkTheme()' title='%s' "
-            "aria-label='%s'>%s%s</button>"
+            "<button type='button' class='theme' onclick='nkTheme()' %s>%s%s%s</button>"
             "</header><main>%s</main></body></html>"
             % (t.lang, meta, esc(title), CSS, THEME_JS, "".join(
                 "<a href='%s'%s>%s%s</a>" % (
                     href, " class='on' aria-current='page'" if href == path else "",
                     icon(ic), esc(t(key)))
-                for href, ic, key in TABS), esc(t("theme.toggle")), esc(t("theme.toggle")),
-               icon("moon", "ic moon"), icon("sun", "ic sun"), body))
+                for href, ic, key in TABS), " ".join(
+                   "data-%s='%s: %s'" % (m, esc(t("theme.toggle")), esc(t("theme." + m)))
+                   for m in THEMES),
+               icon("auto", "ic t-auto"), icon("sun", "ic t-light"), icon("moon", "ic t-dark"),
+               body))
+
+
+# Theme cycle on the header button; "auto" follows the system setting.
+THEMES = ("auto", "light", "dark")
 
 
 # Applied in <head> so the saved theme is set before the first paint; the
-# choice is per browser (localStorage), the system setting is the default.
+# choice is per browser (localStorage), "auto" (no data-theme) is the default.
+# The button shows the current mode (CSS) and names it in its title.
 THEME_JS = (
     "(function(){try{var v=localStorage.getItem('theme');"
-    "if(v)document.documentElement.setAttribute('data-theme',v)}catch(e){}})();"
-    "function nkTheme(){var r=document.documentElement,c=r.getAttribute('data-theme')"
-    "||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'),"
-    "n=c=='dark'?'light':'dark';r.setAttribute('data-theme',n);"
-    "try{localStorage.setItem('theme',n)}catch(e){}}")
+    "if(v=='light'||v=='dark')document.documentElement.setAttribute('data-theme',v)}"
+    "catch(e){}})();"
+    "function nkLabel(){var b=document.querySelector('.theme'),"
+    "m=document.documentElement.getAttribute('data-theme')||'auto';"
+    "b.title=b.getAttribute('data-'+m);b.setAttribute('aria-label',b.title)}"
+    "document.addEventListener('DOMContentLoaded',nkLabel);"
+    "function nkTheme(){var r=document.documentElement,c=r.getAttribute('data-theme')||'auto',"
+    "n={auto:'light',light:'dark',dark:'auto'}[c];"
+    "try{n=='auto'?localStorage.removeItem('theme'):localStorage.setItem('theme',n)}catch(e){}"
+    "n=='auto'?r.removeAttribute('data-theme'):r.setAttribute('data-theme',n);nkLabel()}")
 
 
 # Navigation tabs: (path, icon, label key)
@@ -827,6 +862,10 @@ def rating_cell(svc, t, web_id):
 # remembered per table, as the loans page reloads itself while busy. Cells
 # carry their sort value in data-v. Ratings not cached yet (data-rid) are
 # fetched from /ratings and filled in.
+DELETE_JS = """<script>document.querySelectorAll('form.del').forEach(function(f){
+f.addEventListener('submit',function(e){if(!confirm(f.dataset.confirm))e.preventDefault();});
+});</script>"""
+
 TABLE_JS = """<script>(function(){
 function key(tb){return 'neknihy.sort.'+tb.id;}
 function apply(tb,col,dir){var ths=tb.tHead.rows[0].cells,th=ths[col];
@@ -1001,32 +1040,43 @@ def render_index(svc, t):
     rows = []
     for b in app.books:
         st = b.get("neknihy", {}).get("status", "")
+        if st == "deleted":
+            continue
         label = t("status." + st) if st in STATUSES else st
         src = b.get("cover") or b.get("base_image_url") or ""
         cover = ("<img src='%s' alt='' loading='lazy' class='cover'>" % esc(src)
                  if src.startswith("https://") else "")
         title = b.get("title") or b.get("palm_id") or ""
         authors = app.bookAuthors(b)
+        filename = b.get("neknihy", {}).get("filename", "")
+        delete = ("<td><form method='post' action='/delete' class='del' "
+                  "data-confirm='%s'><input type='hidden' name='palm_id' value='%s'>"
+                  "<input type='hidden' name='audio' value='%d'>"
+                  "<button title='%s' aria-label='%s'>%s<span class='hide-sm'>%s</span>"
+                  "</button></form></td>" % (
+                      esc(t("delete.confirm", title=title)), esc(b.get("palm_id", "")),
+                      isAudiobook(b), esc(t("btn.delete")), esc(t("btn.delete")),
+                      icon("delete"), esc(t("btn.delete"))))
         rows.append(
             "<tr><td data-v='%s'><div class='bk'>%s<div>%s<div class='mut only-sm'>%s</div>"
-            "</div></div></td>%s<td class='hide-sm' data-v='%s'>%s</td>"
+            "</div></div></td>%s<td class='hide-sm' data-v='%s'>%s</td>%s"
+            "<td class='hide-sm mut' data-v='%s'>%s</td>"
             "<td class='hide-sm' data-v='%s'>%s</td>"
-            "<td data-v='%d'><span class='st st-%s'>%s%s</span></td>%s"
-            "<td class='hide-sm mut' data-v='%s'>%s</td></tr>" % (
+            "<td data-v='%d'><span class='st st-%s'>%s%s</span></td>%s</tr>" % (
                 esc(title), cover, esc(title), esc(authors), kind_cell(t, isAudiobook(b)),
-                esc(authors), esc(authors),
+                esc(authors), esc(authors), rating_cell(svc, t, webId(b)),
+                esc(filename), esc(filename),
                 esc(b.get("end_time") or ""), fmt_date(t, b.get("end_time", "")),
                 STATUSES.index(st) if st in STATUSES else len(STATUSES), esc(st),
-                icon(st) if st in STATUSES else "", esc(label), rating_cell(svc, t, webId(b)),
-                esc(b.get("neknihy", {}).get("filename", "")),
-                esc(b.get("neknihy", {}).get("filename", ""))))
-    table = ("%s<table class='sortable' id='loans' %s><thead><tr>%s%s%s%s%s%s%s</tr></thead>"
-             "<tbody>%s</tbody></table>%s" % (
+                icon(st) if st in STATUSES else "", esc(label), delete))
+    table = ("%s<table class='sortable' id='loans' %s><thead><tr>%s%s%s%s%s%s%s<th></th></tr>"
+             "</thead><tbody>%s</tbody></table>%s%s" % (
                  filter_box(t, "loans"), rating_attrs(t), sort_th(t("th.book")),
                  sort_th(t("th.type")), sort_th(t("th.author"), cls="hide-sm"),
-                 sort_th(t("th.due"), cls="hide-sm"),
-                 sort_th(t("th.status")), sort_th(t("th.rating"), "num", first="desc"),
-                 sort_th(t("th.file"), cls="hide-sm"), "".join(rows), TABLE_JS)
+                 sort_th(t("th.rating"), "num", first="desc"),
+                 sort_th(t("th.file"), cls="hide-sm"),
+                 sort_th(t("th.due"), cls="hide-sm"), sort_th(t("th.status")),
+                 "".join(rows), TABLE_JS, DELETE_JS)
              if rows else "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("empty"))))
     status = run_status(svc, t)
     buttons = "".join(
@@ -1093,6 +1143,18 @@ def language_select(t, choice):
         for code, name in opts)
 
 
+def library_select(choice):
+    """<select> of the catalogues on katalog.tsk.sk; keeps an unknown code."""
+    opts = list(katalog.LIBRARIES)
+    choice = choice or "vkmr"
+    if choice not in dict(opts):
+        opts.append((choice, choice))
+    return "<select name='tsk_library' id='tsk_library'>%s</select>" % "".join(
+        "<option value='%s'%s>%s</option>" % (
+            esc(code), " selected" if code == choice else "", esc(name))
+        for code, name in opts)
+
+
 def render_settings(svc, t, lang_choice="auto"):
     s = svc.app.settings
     body = """<div class='card'><form method='post' action='/settings'>
@@ -1116,7 +1178,7 @@ def render_settings(svc, t, lang_choice="auto"):
 <h2 style='margin-top:20px'>%s%s</h2>
 <label>%s</label><input type='text' name='tsk_username' value='%s' autocomplete='off'>
 <label>%s %s</label><input type='password' name='tsk_password' autocomplete='new-password'>
-<label>%s</label><input type='text' name='tsk_library' value='%s'>
+<label for='tsk_library'>%s</label>%s
 <p><button class='primary'>%s%s</button></p></form></div>""" % (
         icon("lang"), esc(t("nav.language")), language_select(t, lang_choice),
         esc(t("set.email")), esc(s.email),
@@ -1132,7 +1194,7 @@ def render_settings(svc, t, lang_choice="auto"):
         icon("borrow"), esc(t("set.tsk")),
         esc(t("set.tsk_username")), esc(s.tsk_username),
         esc(t("set.password")), esc(t("set.password_keep")) if s.tsk_password else "",
-        esc(t("set.tsk_library")), esc(s.tsk_library),
+        esc(t("set.tsk_library")), library_select(s.tsk_library),
         icon("ok"), esc(t("set.save")))
     return page(t, "%s – Neknihy" % t("title.settings"), body, "/settings")
 
@@ -1302,6 +1364,10 @@ def make_handler(svc):
                 if a in ("run", "refresh", "download", "sync", "return"):
                     threading.Thread(target=svc.action, args=(a,), daemon=True).start()
                     time.sleep(0.3)
+                self._redirect("/")
+            elif path == "/delete":
+                if form.get("palm_id"):
+                    svc.delete((form.get("audio") == "1", form["palm_id"]))
                 self._redirect("/")
             elif path == "/borrow":
                 work_id = parse_work_id(form.get("work", ""))

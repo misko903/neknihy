@@ -157,8 +157,20 @@ class App():
                 return True
         return False
 
+    def _expiredSafe(self, book):
+        try:
+            return self.bookExpired(book)
+        except Exception:
+            return False
+
     def updateStatus(self):
         changed = False
+        # a deleted loan is forgotten once it expires
+        kept = [b for b in self.books if not (b.get("neknihy", {}).get("status") == "deleted"
+                                              and self._expiredSafe(b))]
+        if len(kept) != len(self.books):
+            self.books = kept
+            changed = True
         for book in self.books:
             try:
                 if self.bookExpired(book) and book["neknihy"]["status"] != "expired":
@@ -336,7 +348,8 @@ class App():
         exc = None
         for i in range(len(self.books)):
             try:
-                if not self.bookDownloaded(i):
+                if (not self.bookDownloaded(i) and
+                        self.books[i]["neknihy"]["status"] != "deleted"):
                     self.downloadBook(i)
             except Exception as e:
                 exc = e
@@ -353,6 +366,17 @@ class App():
             else:
                 books.append(self.books[i])
         self.books = books
+        self.saveBooks()
+
+    def deleteBook(self, index):
+        """Delete the loan's file. An expired loan is dropped from the list;
+        an active one stays as "deleted" (hidden, not downloaded again), so
+        refreshRents does not bring it back until it expires."""
+        self.removeBookFile(index)
+        if self.books[index]["neknihy"]["status"] == "expired":
+            del self.books[index]
+        else:
+            self.books[index]["neknihy"].update(status="deleted", filename="")
         self.saveBooks()
 
     def bookByFilename(self, filename):

@@ -24,6 +24,22 @@ BASE_URL = "https://katalog.tsk.sk"
 USER_AGENT = "Neknihy (+https://github.com/misko903/neknihy)"
 REDIRECT_CODES = (301, 302, 303, 307, 308)
 
+# Catalogues listed on https://katalog.tsk.sk/ as (code in /library/<code>/, name).
+LIBRARIES = [
+    ("ctk", "CTK v Myjave"),
+    ("gmab", "GMAB v Trenčíne"),
+    ("hnkpd", "HNK v Prievidzi"),
+    ("hnm", "HNM v Prievidzi"),
+    ("hvezdaren", "Hvezdáreň v Partizánskom"),
+    ("kniznicapb", "PK v Považskej Bystrici"),
+    ("pospb", "POS v Považskej Bystrici"),
+    ("rkc", "RKC v Prievidzi"),
+    ("tnos", "TN osvetové stredisko"),
+    ("muzeumtn", "Trenčianske múzeum"),
+    ("vkmr", "VKMR v Trenčíne"),
+    ("muzeumpb", "VM v Považskej Bystrici"),
+]
+
 
 class KatalogError(RuntimeError):
     """Communication with the catalogue failed."""
