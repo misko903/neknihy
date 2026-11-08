@@ -761,14 +761,32 @@ header .hsearch input[type=search]{
 padding-top:6px;
 padding-bottom:6px}
 header .hsearch input[type=search]{
-padding-right:100px}
+padding-left:100px;
+padding-right:38px}
 header .hsearch .seg{
 position:absolute;
-right:3px;
+left:3px;
 top:3px;
 bottom:3px;
 border:0;
 border-radius:6px}
+header .hsearch .go{
+position:absolute;
+right:3px;
+top:3px;
+bottom:3px;
+display:flex;
+align-items:center;
+padding:0 6px;
+border:0;
+border-radius:6px;
+background:none;
+color:var(--mut)}
+header .hsearch .go:hover{
+color:var(--fg)}
+header .hsearch .go .ic{
+width:18px;
+height:18px}
 header .hsearch .seg label{
 padding:0 6px}
 header .hsearch .seg label+label{
@@ -995,8 +1013,9 @@ KIND_ICONS = {"ebook": "ebook", "audiobook": "audio", "all": "both"}
 
 
 def header_search(t, query="", kind="ebook"):
-    """Catalogue search box in the header: Enter searches, the e-book /
-    audiobook / both switch inside it searches again when there is a query."""
+    """Catalogue search box in the header: the e-book / audiobook / both
+    switch sits at its start (and searches again when there is a query), the
+    magnifier button at its end searches, as does Enter."""
     options = "".join(
         "<input type='radio' name='kind' value='%s' id='kind-%s'%s>"
         "<label for='kind-%s' title='%s' aria-label='%s'>%s</label>" % (
@@ -1004,11 +1023,13 @@ def header_search(t, query="", kind="ebook"):
             esc(t("kind." + k)), icon(KIND_ICONS[k])) for k in katalog.KINDS)
     return ("<form method='get' action='/search' class='hsearch' role='search' "
             "onchange='if(this.q.value.trim())this.submit()'>"
-            "<span class='withic'>%s<input type='search' name='q' value='%s' required "
+            "<span class='withic'><input type='search' name='q' value='%s' required "
             "placeholder='%s' aria-label='%s'>"
-            "<span class='seg' role='radiogroup' aria-label='%s'>%s</span></span></form>" % (
-                icon("search"), esc(query), esc(t("search.placeholder")),
-                esc(t("btn.search")), esc(t("kind.label")), options))
+            "<span class='seg' role='radiogroup' aria-label='%s'>%s</span>"
+            "<button class='go' title='%s' aria-label='%s'>%s</button></span></form>" % (
+                esc(query), esc(t("search.placeholder")), esc(t("btn.search")),
+                esc(t("kind.label")), options, esc(t("btn.search")),
+                esc(t("btn.search")), icon("search")))
 
 
 def header_menu(svc, t):
@@ -1421,8 +1442,9 @@ def run_status(svc, t):
 
 def render_log(svc, t):
     lines = "\n".join(reversed(svc.log.lines))
-    body = ("<div class='card'><h2>%s%s</h2><p class='mut status'>%s</p>%s</div>" % (
-        icon("log"), esc(t("log.title")), "<br>".join(run_status(svc, t)),
+    body = ("<div class='card'><h2 title='%s' aria-label='%s'>%s</h2>"
+            "<p class='mut status'>%s</p>%s</div>" % (
+        esc(t("log.title")), esc(t("log.title")), icon("log"), "<br>".join(run_status(svc, t)),
         "<pre class='logfull'>%s</pre>" % esc(lines) if lines else
         "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("empty")))))
     busy = svc.running or svc.awaiting
