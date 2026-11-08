@@ -803,10 +803,12 @@ THEMES = ("auto", "light", "dark")
 
 
 # Applied in <head> so the saved theme is set before the first paint; the
-# choice is per browser (localStorage), "auto" (no data-theme) is the default.
+# choice is per browser (localStorage "nk-theme"; the old "theme" key, saved
+# by the first light/dark-only toggle, is ignored), "auto" (no data-theme) is
+# the default.
 # The button shows the current mode (CSS) and names it in its title.
 THEME_JS = (
-    "(function(){try{var v=localStorage.getItem('theme');"
+    "(function(){try{var v=localStorage.getItem('nk-theme');"
     "if(v=='light'||v=='dark')document.documentElement.setAttribute('data-theme',v)}"
     "catch(e){}})();"
     "function nkLabel(){var b=document.querySelector('.theme'),"
@@ -815,7 +817,7 @@ THEME_JS = (
     "document.addEventListener('DOMContentLoaded',nkLabel);"
     "function nkTheme(){var r=document.documentElement,c=r.getAttribute('data-theme')||'auto',"
     "n={auto:'light',light:'dark',dark:'auto'}[c];"
-    "try{n=='auto'?localStorage.removeItem('theme'):localStorage.setItem('theme',n)}catch(e){}"
+    "try{n=='auto'?localStorage.removeItem('nk-theme'):localStorage.setItem('nk-theme',n)}catch(e){}"
     "n=='auto'?r.removeAttribute('data-theme'):r.setAttribute('data-theme',n);nkLabel()}")
 
 
