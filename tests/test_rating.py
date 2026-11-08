@@ -129,6 +129,22 @@ class FindWebIdsTest(unittest.TestCase):
         self.assertEqual(search.call_args.kwargs["kind"], "audiobook")
         self.assertEqual(webId(self.book), 401774)
 
+    def test_authors_from_catalogue(self):
+        self.book["persons"] += [{"type": "author",
+                                  "author": {"firstname": "Jan", "surname": "Překladatel"}}]
+        res = self.results(("Třináct záhad", 401774, ["Christie, Agatha"]))
+        with mock.patch("neknihy.app.katalog.search", return_value=res):
+            self.app.findWebIds()
+        self.assertEqual(self.app.bookAuthors(self.book), "Agatha Christie")
+
+    def test_known_web_id_still_gets_authors(self):
+        self.book["neknihy"]["web_id"] = 5
+        res = self.results(("Třináct záhad", 401774, ["Čermák, Jan, 1974-"]))
+        with mock.patch("neknihy.app.katalog.search", return_value=res):
+            self.app.findWebIds()
+        self.assertEqual(self.book["neknihy"]["web_id"], 5)
+        self.assertEqual(self.app.bookAuthors(self.book), "Jan Čermák")
+
     def test_not_found_is_remembered_error_is_retried(self):
         with mock.patch("neknihy.app.katalog.search", side_effect=OSError("down")):
             self.app.findWebIds()

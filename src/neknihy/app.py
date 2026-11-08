@@ -31,6 +31,15 @@ def safeName(text, fallback="Audiokniha"):
     return text[:120].rstrip(" .") or fallback
 
 
+def catalogueName(name):
+    """'Christie, Agatha' -> 'Agatha Christie'; dates ('…, 1974-') dropped."""
+    parts = [p.strip() for p in name.split(",")]
+    parts = [p for p in parts if p and not re.search(r"\d", p)]
+    if len(parts) >= 2:
+        return parts[1] + " " + parts[0]
+    return parts[0] if parts else name.strip()
+
+
 class App():
     def __init__(self, config=None, debug=False):
         self.api = API(debug)
@@ -94,17 +103,19 @@ class App():
         self.updateStatus()
 
     def findWebIds(self):
-        """Look up the palmknihy.cz ID of audiobook loans (for their rating).
+        """Look up audiobook loans in the library catalogue.
 
-        Their cover URL does not carry it (see api.webId), but the library
-        catalogue links each audiobook to palmknihy.cz/kniha/<id>. Matched by
-        title, and by author when several titles match. A loan that is not
-        found is not searched again; a failed search is retried next time.
+        Their cover URL does not carry the palmknihy.cz ID (see api.webId),
+        but the catalogue links each audiobook to palmknihy.cz/kniha/<id>;
+        it also names only the real author(s), while Palmknihy lists
+        translators and other contributors as authors too. Matched by title,
+        and by author when several titles match. A loan that was looked up
+        is not searched again; a failed search is retried next time.
         """
         for book in self.books:
             info = book.get("neknihy")
-            if (not isAudiobook(book) or info is None or "web_id" in info or
-                    webId(book) is not None or not book.get("title")):
+            if (not isAudiobook(book) or info is None or "authors" in info or
+                    not book.get("title")):
                 continue
             try:
                 res = katalog.search(book["title"], library=self.settings.tsk_library or "vkmr",
@@ -112,9 +123,12 @@ class App():
             except Exception as e:
                 log.info("Audiobook %s not found in the catalogue: %s", book["title"], e)
                 continue
-            info["web_id"] = self._matchWebId(book, res.get("results", []))
+            match = self._matchCatalogue(book, res.get("results", []))
+            if "web_id" not in info and webId(book) is None:
+                info["web_id"] = match["palm_id"] if match else None
+            info["authors"] = [catalogueName(a) for a in match.get("authors", [])]                 if match else []
 
-    def _matchWebId(self, book, results):
+    def _matchCatalogue(self, book, results):
         title = book["title"].strip().casefold()
         same = [r for r in results if r.get("palm_id") and r.get("audiobook", True) and
                 (r.get("title") or "").strip().casefold() == title]
@@ -125,7 +139,7 @@ class App():
             by_author = [r for r in same if any(
                 n in "; ".join(r.get("authors", [])).casefold() for n in surnames)]
             same = by_author or same
-        return same[0]["palm_id"] if same else None
+        return same[0] if same else None
 
     def dateFromString(self, date):
         try:
@@ -270,6 +284,10 @@ class App():
                                isAudioFile(book.get("neknihy", {}).get("filename")))
 
     def bookAuthors(self, book):
+        known = [a for a in (book.get("neknihy") or {}).get("authors") or [] if a]
+        if known:
+            # as the library catalogue names them
+            return ", ".join(known)
         authors = []
         result = ""
         try:
