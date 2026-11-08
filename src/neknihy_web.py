@@ -583,29 +583,29 @@ font:inherit}
 summary{
 cursor:pointer;
 margin-top:10px}
-details.log>summary{
-margin:0;
-list-style:none;
+header nav a{
+padding:6px 2px;
+color:var(--mut);
+border-bottom:2px solid transparent}
+header nav a:hover{
+color:var(--fg)}
+header nav a.on{
+color:var(--acc);
+border-bottom-color:var(--acc)}
+.cardhead{
 display:flex;
+flex-wrap:wrap;
 align-items:center;
-gap:6px}
-details.log>summary::-webkit-details-marker{
-display:none}
-details.log>summary::after{
-content:'';
-width:7px;
-height:7px;
-margin-left:4px;
-border-right:2px solid var(--mut);
-border-bottom:2px solid var(--mut);
-transform:rotate(-45deg);
-transition:transform .15s}
-details.log[open]>summary::after{
-transform:rotate(45deg)}
-details.log>summary h2{
-margin:0}
-details.log[open]>summary{
+gap:8px;
 margin-bottom:8px}
+.cardhead h2{
+margin:0}
+.cardhead form{
+margin-left:auto}
+.status{
+margin:0 0 12px}
+pre.logfull{
+max-height:none}
 td form{
 margin:0}
 .st-new{
@@ -651,7 +651,10 @@ gap:8px 14px}
 header nav{
 order:3;
 margin-left:0;
-width:100%}
+width:100%;
+gap:18px}
+.cardhead form{
+margin-left:0}
 .actions button span{
 display:none}
 }
@@ -669,11 +672,18 @@ def page(t, title, body, path="/", refresh=None):
             "<title>%s</title><link rel='icon' type='image/png' href='/favicon.png'>"
             "<link rel='apple-touch-icon' href='/apple-touch-icon.png'>"
             "<style>%s</style></head><body>"
-            "<header><h1><img src='/icon.png' alt=''>Neknihy</h1><nav><a href='/'>%s%s</a>"
-            "<a href='/settings'>%s%s</a></nav>"
+            "<header><h1><img src='/icon.png' alt=''>Neknihy</h1><nav>%s</nav>"
             "</header><main>%s</main></body></html>"
-            % (t.lang, meta, esc(title), CSS, icon("loans"), esc(t("nav.loans")), icon("settings"),
-               esc(t("nav.settings")), body))
+            % (t.lang, meta, esc(title), CSS, "".join(
+                "<a href='%s'%s>%s%s</a>" % (
+                    href, " class='on' aria-current='page'" if href == path else "",
+                    icon(ic), esc(t(key)))
+                for href, ic, key in TABS), body))
+
+
+# Navigation tabs: (path, icon, label key)
+TABS = (("/", "loans", "nav.loans"), ("/settings", "settings", "nav.settings"),
+        ("/log", "log", "log.title"))
 
 
 def fmt_date(t, value):
@@ -887,13 +897,6 @@ def render_search(svc, t, query, page_no, kind="ebook"):
     return page(t, "%s – Neknihy" % t("btn.search"), "".join(body), "/")
 
 
-# Remember whether the log is collapsed (the page reloads itself while busy).
-LOG_TOGGLE_JS = """<script>(function(){var d=document.getElementById('log');if(!d)return;
-try{if(localStorage.getItem('neknihy.log')==='closed')d.open=false;}catch(e){}
-d.addEventListener('toggle',function(){try{localStorage.setItem('neknihy.log',
-d.open?'open':'closed');}catch(e){}});})();</script>"""
-
-
 def render_index(svc, t):
     app = svc.app
     rows = []
@@ -924,6 +927,32 @@ def render_index(svc, t):
                  sort_th(t("th.status")), sort_th(t("th.rating"), "num", first="desc"),
                  sort_th(t("th.file"), cls="hide-sm"), "".join(rows), TABLE_JS)
              if rows else "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("empty"))))
+    status = run_status(svc, t)
+    buttons = "".join(
+        "<button name='a' value='%s'%s title='%s'>%s<span>%s</span></button>"
+        % (a, " class='primary'" if a == "run" else "", esc(t("btn." + a)), icon(a),
+           esc(t("btn." + a)))
+        for a in ("run", "refresh", "download", "sync", "return"))
+    awaiting = "".join(
+        "<div class='card'><p class='st st-pending' style='margin:0'>%s<b>%s</b></p>"
+        "<p class='mut' style='margin:4px 0 0'>%s</p></div>" % (
+            icon("pending"),
+            esc(t("await.title", title=aw["title"] or "workId %s" % aw["work_id"])),
+            esc(t("await." + aw["state"], s=WAIT_STEP)))
+        for aw in list(svc.awaiting))
+    # search on top, then the loans with the actions that work on them
+    body = ("%s%s<div class='card'><div class='cardhead'><h2>%s%s</h2>"
+            "<form method='post' action='/action' class='actions'>%s</form></div>"
+            "<p class='mut status'>%s</p>%s</div>" % (
+                awaiting, render_borrow(svc, t), icon("loans"), esc(t("nav.loans")),
+                buttons, "<br>".join(status), table))
+    busy = svc.running or svc.awaiting
+    return page(t, "Neknihy", body, "/", refresh=PAGE_REFRESH if busy else None)
+
+
+def run_status(svc, t):
+    """Lines about the last/next run (and a hint when not configured)."""
+    app = svc.app
     status = []
     if not app.settings.configured():
         link = "<a href='/settings'>%s</a>" % esc(t("settings_link"))
@@ -940,27 +969,18 @@ def render_index(svc, t):
     if svc.next_run and svc.web["interval"] > 0:
         status.append(esc(t("next_run", time=datetime.fromtimestamp(
             svc.next_run).strftime(t("fmt.datetime")))))
-    buttons = "".join(
-        "<button name='a' value='%s'%s title='%s'>%s<span>%s</span></button>"
-        % (a, " class='primary'" if a == "run" else "", esc(t("btn." + a)), icon(a),
-           esc(t("btn." + a)))
-        for a in ("run", "refresh", "download", "sync", "return"))
-    awaiting = "".join(
-        "<div class='card'><p class='st st-pending' style='margin:0'>%s<b>%s</b></p>"
-        "<p class='mut' style='margin:4px 0 0'>%s</p></div>" % (
-            icon("pending"),
-            esc(t("await.title", title=aw["title"] or "workId %s" % aw["work_id"])),
-            esc(t("await." + aw["state"], s=WAIT_STEP)))
-        for aw in list(svc.awaiting))
-    body = ("%s<div class='card'><form method='post' action='/action' class='actions'>%s</form>"
-            "<p class='mut'>%s</p></div>%s<div class='card'>%s</div>"
-            "<details class='card log' id='log' open><summary><h2>%s%s</h2></summary>"
-            "<pre>%s</pre></details>%s" % (
-                awaiting, buttons, "<br>".join(status), render_borrow(svc, t), table,
-                icon("log"),
-                esc(t("log.title")), esc("\n".join(reversed(svc.log.lines))), LOG_TOGGLE_JS))
+    return status
+
+
+def render_log(svc, t):
+    lines = "\n".join(reversed(svc.log.lines))
+    body = ("<div class='card'><h2>%s%s</h2><p class='mut status'>%s</p>%s</div>" % (
+        icon("log"), esc(t("log.title")), "<br>".join(run_status(svc, t)),
+        "<pre class='logfull'>%s</pre>" % esc(lines) if lines else
+        "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("empty")))))
     busy = svc.running or svc.awaiting
-    return page(t, "Neknihy", body, "/", refresh=PAGE_REFRESH if busy else None)
+    return page(t, "%s – Neknihy" % t("log.title"), body, "/log",
+                refresh=PAGE_REFRESH if busy else None)
 
 
 def language_select(t, choice):
@@ -1124,6 +1144,8 @@ def make_handler(svc):
             t = self._translator()
             if path == "/":
                 self._send(render_index(svc, t))
+            elif path == "/log":
+                self._send(render_log(svc, t))
             elif path == "/settings":
                 choice = self._lang_cookie() or ("auto" if not DEFAULT_LANG else DEFAULT_LANG)
                 self._send(render_settings(svc, t, choice))
@@ -1151,7 +1173,7 @@ def make_handler(svc):
                 raw = q.get("l", [""])[0]
                 lang = "auto" if raw == "auto" else i18n.normalize(raw)
                 nxt = q.get("next", ["/"])[0]
-                if nxt not in ("/", "/settings"):
+                if nxt not in ("/", "/settings", "/log"):
                     nxt = "/"  # no open redirects
                 cookie = (LANG_COOKIE % lang) if lang else None
                 self._redirect(nxt, cookie)
