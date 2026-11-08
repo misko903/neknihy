@@ -31,6 +31,8 @@
   "btn.download": "Herunterladen",
   "btn.sync": "Synchronisieren",
   "btn.return": "Abgelaufene löschen",
+  "btn.delete": "Löschen",
+  "delete.confirm": "„{title}“ löschen? Die Datei wird von der Festplatte entfernt.",
   "set.email": "E-Mail (Palmknihy)",
   "set.password": "Passwort",
   "set.password_keep": "(leer lassen, um es beizubehalten)",

@@ -229,6 +229,24 @@ class Service:
             self.lock.release()
             self.wake.set()
 
+    def delete(self, key):
+        """Delete one loan's file (see App.deleteBook); key is (audiobook, palm_id as text)."""
+        if not self.lock.acquire(blocking=False):
+            log.warning("Another operation is running, try again later")
+            return
+        try:
+            for i, b in enumerate(self.app.books):
+                if (isAudiobook(b), str(b.get("palm_id"))) == key:
+                    title = b.get("title") or b.get("palm_id")
+                    self.app.deleteBook(i)
+                    log.info("Deleted: %s", title)
+                    break
+        except Exception as e:
+            log.error("Delete failed: %s", e)
+            self.last_error = str(e)
+        finally:
+            self.lock.release()
+
     @staticmethod
     def _loan_key(book):
         # e-books and audiobooks have separate palm_id ranges
@@ -371,6 +389,8 @@ _ICON_PATHS = {
     "sync": "<rect x='5' y='2' width='14' height='20' rx='2'/><path d='M9 10l3 3 3-3'/>"
             "<path d='M12 6v7'/><path d='M10 18h4'/>",
     "return": "<path d='M9 14 4 9l5-5'/><path d='M4 9h10.5a5.5 5.5 0 0 1 0 11H11'/>",
+    "delete": "<path d='M4 7h16'/><path d='M10 11v6'/><path d='M14 11v6'/>"
+              "<path d='M6 7l1 13h10l1-13'/><path d='M9 7V4h6v3'/>",
     "borrow": "<path d='M12 5v14'/><path d='M5 12h14'/>",
     "search": "<circle cx='11' cy='11' r='7'/><path d='m20 20-3.5-3.5'/>",
     "loans": "<path d='M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z'/>"
@@ -544,6 +564,14 @@ font-size:15px}
 .hide-sm{
 display:none}
 }
+form.del{
+margin:0}
+form.del button{
+padding:4px 8px;
+color:var(--mut)}
+form.del button:hover{
+color:#c0392b;
+border-color:#c0392b}
 .ic{
 width:1.1em;
 height:1.1em;
@@ -827,6 +855,10 @@ def rating_cell(svc, t, web_id):
 # remembered per table, as the loans page reloads itself while busy. Cells
 # carry their sort value in data-v. Ratings not cached yet (data-rid) are
 # fetched from /ratings and filled in.
+DELETE_JS = """<script>document.querySelectorAll('form.del').forEach(function(f){
+f.addEventListener('submit',function(e){if(!confirm(f.dataset.confirm))e.preventDefault();});
+});</script>"""
+
 TABLE_JS = """<script>(function(){
 function key(tb){return 'neknihy.sort.'+tb.id;}
 function apply(tb,col,dir){var ths=tb.tHead.rows[0].cells,th=ths[col];
@@ -1001,32 +1033,43 @@ def render_index(svc, t):
     rows = []
     for b in app.books:
         st = b.get("neknihy", {}).get("status", "")
+        if st == "deleted":
+            continue
         label = t("status." + st) if st in STATUSES else st
         src = b.get("cover") or b.get("base_image_url") or ""
         cover = ("<img src='%s' alt='' loading='lazy' class='cover'>" % esc(src)
                  if src.startswith("https://") else "")
         title = b.get("title") or b.get("palm_id") or ""
         authors = app.bookAuthors(b)
+        filename = b.get("neknihy", {}).get("filename", "")
+        delete = ("<td><form method='post' action='/delete' class='del' "
+                  "data-confirm='%s'><input type='hidden' name='palm_id' value='%s'>"
+                  "<input type='hidden' name='audio' value='%d'>"
+                  "<button title='%s' aria-label='%s'>%s<span class='hide-sm'>%s</span>"
+                  "</button></form></td>" % (
+                      esc(t("delete.confirm", title=title)), esc(b.get("palm_id", "")),
+                      isAudiobook(b), esc(t("btn.delete")), esc(t("btn.delete")),
+                      icon("delete"), esc(t("btn.delete"))))
         rows.append(
             "<tr><td data-v='%s'><div class='bk'>%s<div>%s<div class='mut only-sm'>%s</div>"
-            "</div></div></td>%s<td class='hide-sm' data-v='%s'>%s</td>"
+            "</div></div></td>%s<td class='hide-sm' data-v='%s'>%s</td>%s"
+            "<td class='hide-sm mut' data-v='%s'>%s</td>"
             "<td class='hide-sm' data-v='%s'>%s</td>"
-            "<td data-v='%d'><span class='st st-%s'>%s%s</span></td>%s"
-            "<td class='hide-sm mut' data-v='%s'>%s</td></tr>" % (
+            "<td data-v='%d'><span class='st st-%s'>%s%s</span></td>%s</tr>" % (
                 esc(title), cover, esc(title), esc(authors), kind_cell(t, isAudiobook(b)),
-                esc(authors), esc(authors),
+                esc(authors), esc(authors), rating_cell(svc, t, webId(b)),
+                esc(filename), esc(filename),
                 esc(b.get("end_time") or ""), fmt_date(t, b.get("end_time", "")),
                 STATUSES.index(st) if st in STATUSES else len(STATUSES), esc(st),
-                icon(st) if st in STATUSES else "", esc(label), rating_cell(svc, t, webId(b)),
-                esc(b.get("neknihy", {}).get("filename", "")),
-                esc(b.get("neknihy", {}).get("filename", ""))))
-    table = ("%s<table class='sortable' id='loans' %s><thead><tr>%s%s%s%s%s%s%s</tr></thead>"
-             "<tbody>%s</tbody></table>%s" % (
+                icon(st) if st in STATUSES else "", esc(label), delete))
+    table = ("%s<table class='sortable' id='loans' %s><thead><tr>%s%s%s%s%s%s%s<th></th></tr>"
+             "</thead><tbody>%s</tbody></table>%s%s" % (
                  filter_box(t, "loans"), rating_attrs(t), sort_th(t("th.book")),
                  sort_th(t("th.type")), sort_th(t("th.author"), cls="hide-sm"),
-                 sort_th(t("th.due"), cls="hide-sm"),
-                 sort_th(t("th.status")), sort_th(t("th.rating"), "num", first="desc"),
-                 sort_th(t("th.file"), cls="hide-sm"), "".join(rows), TABLE_JS)
+                 sort_th(t("th.rating"), "num", first="desc"),
+                 sort_th(t("th.file"), cls="hide-sm"),
+                 sort_th(t("th.due"), cls="hide-sm"), sort_th(t("th.status")),
+                 "".join(rows), TABLE_JS, DELETE_JS)
              if rows else "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("empty"))))
     status = run_status(svc, t)
     buttons = "".join(
@@ -1302,6 +1345,10 @@ def make_handler(svc):
                 if a in ("run", "refresh", "download", "sync", "return"):
                     threading.Thread(target=svc.action, args=(a,), daemon=True).start()
                     time.sleep(0.3)
+                self._redirect("/")
+            elif path == "/delete":
+                if form.get("palm_id"):
+                    svc.delete((form.get("audio") == "1", form["palm_id"]))
                 self._redirect("/")
             elif path == "/borrow":
                 work_id = parse_work_id(form.get("work", ""))

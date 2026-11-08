@@ -31,6 +31,8 @@
   "btn.download": "Stiahnuť",
   "btn.sync": "Synchronizovať",
   "btn.return": "Zmazať prepadnuté",
+  "btn.delete": "Vymazať",
+  "delete.confirm": "Vymazať „{title}“? Súbor sa odstráni z disku.",
   "set.email": "E-mail (Palmknihy)",
   "set.password": "Heslo",
   "set.password_keep": "(nechajte prázdne, ak ho nemeníte)",
