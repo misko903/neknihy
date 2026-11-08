@@ -685,6 +685,8 @@ header nav a{
 padding:6px 2px;
 color:var(--mut);
 border-bottom:2px solid transparent}
+header nav a[hidden]{
+display:none}
 header nav a:hover{
 color:var(--fg)}
 header nav a.on{
@@ -966,7 +968,7 @@ margin-left:auto}
 header .icbtn{
 order:1;
 margin-left:auto}
-header .icbtn+.theme{
+header .icbtn+.icbtn,header .icbtn+.theme{
 margin-left:0}
 header .hsearch{
 order:2;
@@ -1024,34 +1026,38 @@ def header_menu(svc, t):
                 esc(t("nav.more")), esc(t("nav.more")), icon("more"), inner))
 
 
-# The header title switches between the loans and the last search: on the
-# loans page it opens the last search (localStorage "neknihy.lastsearch",
-# saved by the search page), or puts the cursor in the search box when there
-# is none; elsewhere it leads to the loans. A click outside the ⋮ menu
-# closes it.
+# The header title always leads to the loans (the home screen). The header
+# tab names where it switches to: on the loans page it is "Found" and opens
+# the last search (localStorage "neknihy.lastsearch", saved by the search
+# page; the tab stays hidden when there is none); elsewhere it is "Loans".
+# A click outside the ⋮ menu closes it.
 BRAND_JS = """<script>document.addEventListener('click',function(e){
 document.querySelectorAll('details.menu[open]').forEach(function(d){
 if(!d.contains(e.target))d.removeAttribute('open');});});
-(function(){var a=document.getElementById('brand');
+(function(){var a=document.getElementById('found');
 if(location.pathname==='/search'){try{localStorage.setItem('neknihy.lastsearch',
 location.pathname+location.search);}catch(e){}return;}
-if(location.pathname!=='/')return;
-a.addEventListener('click',function(e){var s=null;
+if(!a)return;var s=null;
 try{s=localStorage.getItem('neknihy.lastsearch');}catch(x){}
-if(s&&s.indexOf('/search?')===0){a.href=s;return;}
-e.preventDefault();document.querySelector('.hsearch input[name=q]').focus();});})();</script>"""
+if(s&&s.indexOf('/search?')===0){a.href=s;a.hidden=false;}})();</script>"""
 
 
 def nav_tabs(t, path):
-    """Header tabs; on the search page the loans tab shows the found titles."""
-    tabs = TABS
-    if path == "/search":
-        tabs = (("/search", "search", "nav.found"),) + TABS[1:]
-    return "".join(
-        "<a href='%s'%s>%s%s</a>" % (
-            href, " class='on' aria-current='page'" if href == path else "",
-            icon(ic), esc(t(key)))
-        for href, ic, key in tabs)
+    """The header tab names where it switches to: the found titles from the
+    loans page (shown by BRAND_JS once there is a last search), the loans
+    from anywhere else."""
+    if path == "/":
+        return "<a href='/search' id='found' hidden>%s%s</a>" % (
+            icon("search"), esc(t("nav.found")))
+    return "<a href='/'>%s%s</a>" % (icon("loans"), esc(t("nav.loans")))
+
+
+def icon_link(t, href, ic, key, path):
+    """Icon-only header link (log, settings)."""
+    on = href == path
+    return "<a href='%s' class='icbtn%s' title='%s' aria-label='%s'%s>%s</a>" % (
+        href, " on" if on else "", esc(t(key)), esc(t(key)),
+        " aria-current='page'" if on else "", icon(ic))
 
 
 def page(t, title, body, path="/", refresh=None, query="", kind="ebook", svc=None):
@@ -1063,15 +1069,14 @@ def page(t, title, body, path="/", refresh=None, query="", kind="ebook", svc=Non
             "<style>%s</style><script>%s</script></head><body>"
             "<header><h1><a href='/' id='brand' title='%s'><img src='/icon.png?v=%s' alt=''>"
             "Neknihy NextGen</a></h1>%s%s<nav>%s</nav>"
-            "<a href='/settings' class='icbtn%s' title='%s' aria-label='%s'%s>%s</a>"
+            "%s%s"
             "<button type='button' class='theme' onclick='nkTheme()' %s>%s%s%s</button>"
             "</header><main>%s</main>%s</body></html>"
             % (t.lang, meta, esc(title), STATIC_VER, STATIC_VER, CSS, THEME_JS,
                esc(t("nav.brand")), STATIC_VER, header_search(t, query, kind),
                header_menu(svc, t), nav_tabs(t, path),
-               " on" if path == "/settings" else "", esc(t("nav.settings")),
-               esc(t("nav.settings")),
-               " aria-current='page'" if path == "/settings" else "", icon("settings"),
+               icon_link(t, "/log", "log", "log.title", path),
+               icon_link(t, "/settings", "settings", "nav.settings", path),
                " ".join(
                    "data-%s='%s: %s'" % (m, esc(t("theme.toggle")), esc(t("theme." + m)))
                    for m in THEMES),
@@ -1100,10 +1105,6 @@ THEME_JS = (
     "n={auto:'light',light:'dark',dark:'auto'}[c];"
     "try{n=='auto'?localStorage.removeItem('nk-theme'):localStorage.setItem('nk-theme',n)}catch(e){}"
     "n=='auto'?r.removeAttribute('data-theme'):r.setAttribute('data-theme',n);nkLabel()}")
-
-
-# Navigation tabs: (path, icon, label key)
-TABS = (("/", "loans", "nav.loans"), ("/log", "log", "log.title"))
 
 
 def fmt_date(t, value):
