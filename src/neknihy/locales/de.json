@@ -72,5 +72,7 @@
   "search.borrowed_wait": "ausgeliehen, wird gleich heruntergeladen",
   "rating.value": "{p} %",
   "rating.count": "Leserbewertungen: {n}",
-  "rating.none": "Noch nicht bewertet"
+  "rating.none": "Noch nicht bewertet",
+  "filter.placeholder": "Filtern (Titel, Autor, Status…)",
+  "filter.count": "{n} von {total}"
 }

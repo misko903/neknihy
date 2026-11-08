@@ -607,6 +607,18 @@ opacity:1;
 font-size:10px}
 td.rt{
 white-space:nowrap}
+.tfilter{
+align-items:center;
+margin-bottom:8px}
+.tfilter input{
+flex:1;
+min-width:160px}
+.only-sm{
+display:none}
+@media (max-width:600px){
+.only-sm{
+display:block}
+}
 .rt b{
 font-weight:600}
 @media (max-width:600px){
@@ -654,6 +666,15 @@ def sort_th(label, kind="text", cls="", first="asc"):
             "</button></th>" % (" " + cls if cls else "", kind, first, esc(label)))
 
 
+def filter_box(t, table_id):
+    """Text box that hides the rows of a table that do not match (see TABLE_JS)."""
+    return ("<div class='actions tfilter'><input type='search' data-for='%s' "
+            "placeholder='%s' aria-label='%s' autocomplete='off'>"
+            "<span class='mut' data-count='%s' hidden></span></div>" % (
+                table_id, esc(t("filter.placeholder")), esc(t("filter.placeholder")),
+                esc(t("filter.count", n="{n}", total="{total}"))))
+
+
 def rating_attrs(t):
     """Texts the table script needs to show ratings it loads later."""
     return ("data-fmt='%s' data-none='%s' data-count='%s'" % (
@@ -694,8 +715,19 @@ rows.forEach(function(r){body.appendChild(r);});
 try{localStorage.setItem(key(tb),col+':'+dir);}catch(e){}}
 function current(tb){var ths=tb.tHead.rows[0].cells;for(var i=0;i<ths.length;i++){
 var s=ths[i].getAttribute('aria-sort');if(s)return [i,s==='ascending'?1:-1];}return null;}
+function norm(s){return s.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();}
+function filter(tb,box){var words=norm(box.value).split(/\\s+/).filter(Boolean),n=0,
+rows=tb.tBodies[0].rows,cnt=box.parentNode.querySelector('[data-count]');
+Array.prototype.forEach.call(rows,function(r){var txt=norm(r.textContent),
+ok=words.every(function(w){return txt.indexOf(w)>=0;});r.hidden=!ok;if(ok)n++;});
+cnt.hidden=!words.length;cnt.textContent=cnt.getAttribute('data-count')
+.replace('{n}',n).replace('{total}',rows.length);
+try{sessionStorage.setItem('neknihy.filter.'+tb.id,box.value);}catch(e){}}
 document.querySelectorAll('table.sortable').forEach(function(tb){
 Array.prototype.forEach.call(tb.tBodies[0].rows,function(r,i){r.setAttribute('data-i',i);});
+var box=document.querySelector('input[data-for="'+tb.id+'"]');
+if(box){try{box.value=sessionStorage.getItem('neknihy.filter.'+tb.id)||'';}catch(e){}
+box.addEventListener('input',function(){filter(tb,box);});if(box.value)filter(tb,box);}
 Array.prototype.forEach.call(tb.tHead.rows[0].cells,function(th,col){
 if(!th.classList.contains('sort'))return;
 th.querySelector('button').addEventListener('click',function(){var c=current(tb);
@@ -810,10 +842,11 @@ def render_search(svc, t, query, page_no, kind="ebook"):
                 esc(r["title"] or r["work_id"]), badge, esc(r["publish_info"]),
                 esc(authors), esc(authors), rating_cell(svc, t, r["palm_id"]), action))
     if rows:
-        table = ("<p class='mut'>%s</p><table class='sortable' id='search' %s><thead><tr>"
+        table = ("<p class='mut'>%s</p>%s<table class='sortable' id='search' %s><thead><tr>"
                  "<th class='hide-sm'></th>%s%s%s<th></th></tr></thead><tbody>%s</tbody>"
                  "</table>%s" % (
-                     esc(t("search.results_" + res["kind"], n=res["total"])), rating_attrs(t),
+                     esc(t("search.results_" + res["kind"], n=res["total"])),
+                     filter_box(t, "search"), rating_attrs(t),
                      sort_th(t("th.book")), sort_th(t("th.author"), cls="hide-sm"),
                      sort_th(t("th.rating"), "num", first="desc"), "".join(rows), TABLE_JS))
     else:
@@ -848,20 +881,23 @@ def render_index(svc, t):
         cover = ("<img src='%s' alt='' loading='lazy' class='cover'>" % esc(src)
                  if src.startswith("https://") else "")
         title = b.get("title") or b.get("palm_id") or ""
+        authors = app.bookAuthors(b)
         rows.append(
-            "<tr><td data-v='%s'><div class='bk'>%s<div>%s<div class='mut'>%s</div></div>"
-            "</div></td><td class='hide-sm' data-v='%s'>%s</td>"
+            "<tr><td data-v='%s'><div class='bk'>%s<div>%s<div class='mut only-sm'>%s</div>"
+            "</div></div></td><td class='hide-sm' data-v='%s'>%s</td>"
+            "<td class='hide-sm' data-v='%s'>%s</td>"
             "<td data-v='%d'><span class='st st-%s'>%s%s</span></td>%s"
             "<td class='hide-sm mut' data-v='%s'>%s</td></tr>" % (
-                esc(title), cover, esc(title), esc(app.bookAuthors(b)),
+                esc(title), cover, esc(title), esc(authors), esc(authors), esc(authors),
                 esc(b.get("end_time") or ""), fmt_date(t, b.get("end_time", "")),
                 STATUSES.index(st) if st in STATUSES else len(STATUSES), esc(st),
                 icon(st) if st in STATUSES else "", esc(label), rating_cell(svc, t, webId(b)),
                 esc(b.get("neknihy", {}).get("filename", "")),
                 esc(b.get("neknihy", {}).get("filename", ""))))
-    table = ("<table class='sortable' id='loans' %s><thead><tr>%s%s%s%s%s</tr></thead>"
+    table = ("%s<table class='sortable' id='loans' %s><thead><tr>%s%s%s%s%s%s</tr></thead>"
              "<tbody>%s</tbody></table>%s" % (
-                 rating_attrs(t), sort_th(t("th.book")), sort_th(t("th.due"), cls="hide-sm"),
+                 filter_box(t, "loans"), rating_attrs(t), sort_th(t("th.book")),
+                 sort_th(t("th.author"), cls="hide-sm"), sort_th(t("th.due"), cls="hide-sm"),
                  sort_th(t("th.status")), sort_th(t("th.rating"), "num", first="desc"),
                  sort_th(t("th.file"), cls="hide-sm"), "".join(rows), TABLE_JS)
              if rows else "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("empty"))))

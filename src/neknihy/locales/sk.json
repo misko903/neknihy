@@ -72,5 +72,7 @@
   "search.borrowed_wait": "požičaná, o chvíľu sa stiahne",
   "rating.value": "{p} %",
   "rating.count": "Hodnotenia čitateľov: {n}",
-  "rating.none": "Zatiaľ bez hodnotenia"
+  "rating.none": "Zatiaľ bez hodnotenia",
+  "filter.placeholder": "Filtrovať (názov, autor, stav…)",
+  "filter.count": "{n} z {total}"
 }

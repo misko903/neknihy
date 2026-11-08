@@ -72,5 +72,7 @@
   "search.borrowed_wait": "vypůjčeno, za chvíli se stáhne",
   "rating.value": "{p} %",
   "rating.count": "Hodnocení čtenářů: {n}",
-  "rating.none": "Zatím nehodnoceno"
+  "rating.none": "Zatím nehodnoceno",
+  "filter.placeholder": "Filtrovat (název, autor, stav…)",
+  "filter.count": "{n} z {total}"
 }

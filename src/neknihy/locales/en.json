@@ -72,5 +72,7 @@
   "search.borrowed_wait": "borrowed, downloading soon",
   "rating.value": "{p}%",
   "rating.count": "Reader ratings: {n}",
-  "rating.none": "Not rated yet"
+  "rating.none": "Not rated yet",
+  "filter.placeholder": "Filter (title, author, status…)",
+  "filter.count": "{n} of {total}"
 }
