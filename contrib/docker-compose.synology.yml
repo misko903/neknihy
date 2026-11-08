@@ -53,7 +53,7 @@ services:
       - /volume1/docker/neknihy/config:/config   # nastavenia
       - /volume1/docker/neknihy/books:/books     # stiahnuté knihy
       - /volume1/docker/autocalibreweb/ingest:/reader   # ingest priečinok CW NG
-      - /volume1/docker/audiobookshelf/audiobooks:/audiobooks   # ← knižnica Audiobookshelf
+      - /volume1/audiobooks:/audiobooks   # ← knižnica Audiobookshelf
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8478/health')"]
       interval: 60s

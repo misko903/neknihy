@@ -40,4 +40,4 @@ services:
       # (vo webe potom nastav "Složka pro synchronizaci" na /reader):
       # - /volume1/docker/calibre-web/ingest:/reader
       # Priečinok knižnice Audiobookshelf (ABS ho sleduje a audioknihy pridá sám):
-      # - /volume1/docker/audiobookshelf/audiobooks:/audiobooks
+      # - /volume1/audiobooks:/audiobooks
