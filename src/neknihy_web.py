@@ -1259,6 +1259,10 @@ def render_index(svc, t):
         title = b.get("title") or b.get("palm_id") or ""
         authors = app.bookAuthors(b)
         filename = b.get("neknihy", {}).get("filename", "")
+        # the title opens the book on palmknihy.cz when its web ID is known
+        wid = webId(b)
+        name = ("<a href='https://www.palmknihy.cz/kniha/%s' target='_blank' "
+                "rel='noopener'>%s</a>" % (esc(str(wid)), esc(title)) if wid else esc(title))
         delete = ("<td class='c-act'><form method='post' action='/delete' class='del' "
                   "data-confirm='%s'><input type='hidden' name='palm_id' value='%s'>"
                   "<input type='hidden' name='audio' value='%d'>"
@@ -1273,8 +1277,8 @@ def render_index(svc, t):
             "<td class='hide-sm mut c-file' data-v='%s'>%s</td>"
             "<td class='hide-sm c-due' data-v='%s'>%s</td>"
             "<td data-v='%d'><span class='st st-%s'>%s%s</span></td>%s</tr>" % (
-                esc(title), cover, esc(title), esc(authors), kind_cell(t, isAudiobook(b)),
-                esc(authors), esc(authors), rating_cell(svc, t, webId(b)),
+                esc(title), cover, name, esc(authors), kind_cell(t, isAudiobook(b)),
+                esc(authors), esc(authors), rating_cell(svc, t, wid),
                 esc(filename), esc(filename),
                 esc(b.get("end_time") or ""), fmt_date(t, b.get("end_time", "")),
                 STATUSES.index(st) if st in STATUSES else len(STATUSES), esc(st),
