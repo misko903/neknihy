@@ -35,16 +35,23 @@ def catalogueIds(book):
     m = _COVER_ID_RE.search(book.get("cover") or "")
     if m:
         ids.add(int(m.group(1)))
+    found = (book.get("neknihy") or {}).get("web_id")
+    if found:
+        ids.add(found)
     return ids
 
 
 def webId(book):
     """The book's ID on palmknihy.cz (palmknihy.cz/kniha/<id>), or None.
 
-    The cover URL carries it for every loan; older e-books without one
-    use their palm_id.
+    The cover URL carries it for e-books (older ones without it use their
+    palm_id). Audiobook covers do not, so App.findWebIds() looks the ID up
+    in the library catalogue and keeps it in book["neknihy"]["web_id"].
     """
     book = book or {}
+    found = (book.get("neknihy") or {}).get("web_id")
+    if found:
+        return found
     m = _COVER_ID_RE.search(book.get("cover") or "")
     if m:
         return int(m.group(1))

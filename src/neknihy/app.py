@@ -1,13 +1,17 @@
-from neknihy.api import API, isAudiobook
+from neknihy import katalog
+from neknihy.api import API, isAudiobook, webId
 from neknihy.katalog import KatalogTSK
 from neknihy.settings import Settings
 
 import os.path
 import json
+import logging
 import re
 import subprocess
 from datetime import datetime, timezone
 from shutil import copy, move, rmtree
+
+log = logging.getLogger("neknihy")
 
 # Audiobook files: kept in workdir, but never sent to the e-reader / ingest
 # folder (readers and Calibre cannot use them).
@@ -85,8 +89,43 @@ class App():
                 if self.bookIndexByPalmId(rent["palm_id"], rent.get("item_type")) is None:
                     rent["neknihy"] = {"status": "new", "filename": ""}
                     self.books.append(rent)
+        self.findWebIds()
         self.saveBooks()
         self.updateStatus()
+
+    def findWebIds(self):
+        """Look up the palmknihy.cz ID of audiobook loans (for their rating).
+
+        Their cover URL does not carry it (see api.webId), but the library
+        catalogue links each audiobook to palmknihy.cz/kniha/<id>. Matched by
+        title, and by author when several titles match. A loan that is not
+        found is not searched again; a failed search is retried next time.
+        """
+        for book in self.books:
+            info = book.get("neknihy")
+            if (not isAudiobook(book) or info is None or "web_id" in info or
+                    webId(book) is not None or not book.get("title")):
+                continue
+            try:
+                res = katalog.search(book["title"], library=self.settings.tsk_library or "vkmr",
+                                     kind="audiobook", timeout=15)
+            except Exception as e:
+                log.info("Audiobook %s not found in the catalogue: %s", book["title"], e)
+                continue
+            info["web_id"] = self._matchWebId(book, res.get("results", []))
+
+    def _matchWebId(self, book, results):
+        title = book["title"].strip().casefold()
+        same = [r for r in results if r.get("palm_id") and r.get("audiobook", True) and
+                (r.get("title") or "").strip().casefold() == title]
+        if len(same) > 1:
+            surnames = {(p.get("author") or {}).get("surname", "").casefold()
+                        for p in book.get("persons", []) if p.get("type") == "author"}
+            surnames.discard("")
+            by_author = [r for r in same if any(
+                n in "; ".join(r.get("authors", [])).casefold() for n in surnames)]
+            same = by_author or same
+        return same[0]["palm_id"] if same else None
 
     def dateFromString(self, date):
         try:

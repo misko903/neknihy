@@ -95,6 +95,49 @@ class WebIdTest(unittest.TestCase):
         self.assertEqual(webId({"palm_id": 5}), 5)
         self.assertIsNone(webId({"palm_id": 5, "item_type": "audiobook"}))
 
+    def test_found_web_id(self):
+        book = {"palm_id": 75282, "item_type": "audiobook",
+                "cover": "https://cdn.palmknihy.cz/x/a801v0f0010466_trinact-zahad.jpg",
+                "neknihy": {"status": "ok", "web_id": 401774}}
+        self.assertEqual(webId(book), 401774)
+
+
+class FindWebIdsTest(unittest.TestCase):
+    def setUp(self):
+        from neknihy.app import App
+        self.app = App.__new__(App)
+        self.app.settings = mock.Mock(tsk_library="vkmr")
+        self.book = {"palm_id": 75282, "item_type": "audiobook", "title": "Třináct záhad",
+                     "persons": [{"type": "author",
+                                  "author": {"firstname": "Agatha", "surname": "Christie"}}],
+                     "neknihy": {"status": "ok"}}
+        self.app.books = [self.book, {"palm_id": 1, "item_type": "ebook", "title": "X",
+                                      "neknihy": {"status": "ok"}}]
+
+    def results(self, *items):
+        return {"results": [dict(title=t, palm_id=i, authors=a, audiobook=True)
+                            for t, i, a in items]}
+
+    def test_match_by_title_and_author(self):
+        res = self.results(("Třináct záhad", 1, ["Novák, Jan"]),
+                           ("třináct záhad ", 401774, ["Christie, Agatha"]),
+                           ("Třináct záhad a jedna", 3, ["Christie, Agatha"]))
+        with mock.patch("neknihy.app.katalog.search", return_value=res) as search:
+            self.app.findWebIds()
+            self.app.findWebIds()  # already known: not searched again
+        search.assert_called_once()
+        self.assertEqual(search.call_args.kwargs["kind"], "audiobook")
+        self.assertEqual(webId(self.book), 401774)
+
+    def test_not_found_is_remembered_error_is_retried(self):
+        with mock.patch("neknihy.app.katalog.search", side_effect=OSError("down")):
+            self.app.findWebIds()
+        self.assertNotIn("web_id", self.book["neknihy"])
+        with mock.patch("neknihy.app.katalog.search", return_value=self.results()):
+            self.app.findWebIds()
+        self.assertIsNone(self.book["neknihy"]["web_id"])
+        self.assertIsNone(webId(self.book))
+
 
 if __name__ == "__main__":
     unittest.main()
