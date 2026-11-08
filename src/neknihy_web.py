@@ -1330,10 +1330,10 @@ def render_settings(svc, t, lang_choice="auto"):
             "<p><button class='primary'>%s%s</button></p></form>") % (
         section("settings", "set.sec_general", general),
         section("download", "set.sec_account", account),
-        section("ebook", "set.sec_folders", folders),
-        section("pending", "set.sec_auto", auto),
         section("loans", "set.tsk", tsk),
+        section("ebook", "set.sec_folders", folders),
         section("refresh", "set.sec_convert", convert),
+        section("pending", "set.sec_auto", auto),
         icon("ok"), esc(t("set.save")))
     return page(t, "%s – Neknihy NextGen" % t("title.settings"), body, "/settings")
 
