@@ -21,7 +21,7 @@ import requests
 log = logging.getLogger("neknihy")
 
 BASE_URL = "https://katalog.tsk.sk"
-USER_AGENT = "Neknihy (+https://github.com/misko903/neknihy)"
+USER_AGENT = "Neknihy-NextGen (+https://github.com/misko903/neknihy)"
 REDIRECT_CODES = (301, 302, 303, 307, 308)
 
 # Catalogues listed on https://katalog.tsk.sk/ as (code in /library/<code>/, name).

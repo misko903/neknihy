@@ -1,5 +1,5 @@
-# neknihy
-Neknihy is an application for managing rented books.
+# Neknihy NextGen
+Neknihy NextGen is an application for managing rented books.
 It works with some libraries in the Czech republic
 so the rest is in Czech language only.
 

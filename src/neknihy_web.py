@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Neknihy web interface + scheduler (no extra dependencies).
+"""Neknihy NextGen web interface + scheduler (no extra dependencies).
 
     NEKNIHY_WEB_PORT      port to listen on (default 8478)
     NEKNIHY_WEB_PASSWORD  optional password for the web UI (HTTP basic auth,
@@ -784,7 +784,7 @@ def page(t, title, body, path="/", refresh=None):
             "<title>%s</title><link rel='icon' type='image/png' href='/favicon.png'>"
             "<link rel='apple-touch-icon' href='/apple-touch-icon.png'>"
             "<style>%s</style><script>%s</script></head><body>"
-            "<header><h1><img src='/icon.png' alt=''>Neknihy</h1><nav>%s</nav>"
+            "<header><h1><img src='/icon.png' alt=''>Neknihy NextGen</h1><nav>%s</nav>"
             "<button type='button' class='theme' onclick='nkTheme()' %s>%s%s%s</button>"
             "</header><main>%s</main></body></html>"
             % (t.lang, meta, esc(title), CSS, THEME_JS, "".join(
@@ -987,7 +987,7 @@ def render_search(svc, t, query, page_no, kind="ebook"):
         log.error("Catalogue search failed: %s", e)
         body.append("<div class='card'><p class='st st-pending'>%s%s</p></div>" % (
             icon("warn"), esc(t("search.error", error=e))))
-        return page(t, "%s – Neknihy" % t("btn.search"), "".join(body), "/")
+        return page(t, "%s – Neknihy NextGen" % t("btn.search"), "".join(body), "/")
 
     active = [b for b in app.books if b.get("neknihy", {}).get("status") != "expired"]
     # the catalogue links to palmknihy.cz/kniha/<id>, which is often not the
@@ -1050,7 +1050,7 @@ def render_search(svc, t, query, page_no, kind="ebook"):
     if not can_borrow:
         table += not_configured_hint(t)
     body.append("<div class='card'>%s</div>" % table)
-    return page(t, "%s – Neknihy" % t("btn.search"), "".join(body), "/")
+    return page(t, "%s – Neknihy NextGen" % t("btn.search"), "".join(body), "/")
 
 
 def render_index(svc, t):
@@ -1115,7 +1115,7 @@ def render_index(svc, t):
                 awaiting, render_borrow(svc, t), icon("loans"), esc(t("nav.loans")),
                 buttons, "<br>".join(status), table))
     busy = svc.running or svc.awaiting
-    return page(t, "Neknihy", body, "/", refresh=PAGE_REFRESH if busy else None)
+    return page(t, "Neknihy NextGen", body, "/", refresh=PAGE_REFRESH if busy else None)
 
 
 def run_status(svc, t):
@@ -1147,7 +1147,7 @@ def render_log(svc, t):
         "<pre class='logfull'>%s</pre>" % esc(lines) if lines else
         "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("empty")))))
     busy = svc.running or svc.awaiting
-    return page(t, "%s – Neknihy" % t("log.title"), body, "/log",
+    return page(t, "%s – Neknihy NextGen" % t("log.title"), body, "/log",
                 refresh=PAGE_REFRESH if busy else None)
 
 
@@ -1224,7 +1224,7 @@ def render_settings(svc, t, lang_choice="auto"):
         section("loans", "set.tsk", tsk),
         section("refresh", "set.sec_convert", convert),
         icon("ok"), esc(t("set.save")))
-    return page(t, "%s – Neknihy" % t("title.settings"), body, "/settings")
+    return page(t, "%s – Neknihy NextGen" % t("title.settings"), body, "/settings")
 
 
 def make_handler(svc):
@@ -1246,7 +1246,7 @@ def make_handler(svc):
                 except Exception:
                     pass
             self.send_response(401)
-            self.send_header("WWW-Authenticate", 'Basic realm="Neknihy"')
+            self.send_header("WWW-Authenticate", 'Basic realm="Neknihy NextGen"')
             self.end_headers()
             return False
 
