@@ -5,7 +5,7 @@ libraries that lend through Palmknihy. It downloads borrowed books, copies
 them to your e-reader (or a Calibre-Web ingest folder), files audiobooks
 for Audiobookshelf and returns loans with one click. It runs as a desktop
 app or headless in Docker with a web interface in Czech, Slovak, English
-and German. Most of the documentation below is in Czech.
+and German. The documentation below is in Slovak.
 
 Neknihy NextGen spravuje výpožičky e-kníh a audiokníh z knižníc, ktoré
 požičiavajú cez Palmknihy:
@@ -21,193 +21,228 @@ požičiavajú cez Palmknihy:
 Projekt vychádza z pôvodných [Neknihy](https://github.com/thalman/neknihy)
 od Tomáša Halmana.
 
-## Motivace
+## Motivácia
 
-Některé knihovny v ČR půjčují i e-knihy, což je skvělé. Bohužel
-mobilní aplikce pro čtení nemá moc dobré hodnocení a na velkém
-množství čteček nefunguje dobře nebo vůbec.
+Niektoré knižnice v ČR požičiavajú aj e-knihy, čo je skvelé. Žiaľ,
+mobilná aplikácia na čítanie nemá veľmi dobré hodnotenie a na veľkom
+množstve čítačiek nefunguje dobre alebo vôbec.
 
-Proto jsem vytvořil tuto aplikaci, která umožňuje pracovat
-s výpujčkami na desktopu. Knihy je možné stáhnout do vybrané
-složky odkud se synchronizují s vybranou složkou ve čtečce.
+Preto som vytvoril túto aplikáciu, ktorá umožňuje pracovať
+s výpožičkami na desktope. Knihy je možné stiahnuť do vybraného
+priečinka, odkiaľ sa synchronizujú s vybraným priečinkom v čítačke.
 
-Knihy lze po uplynutí výpůjční doby snadno vrátit přímo tlačítkem
-v aplikaci. Při další synchronizaci se čtečkou dojde i k smazání
-knih ve čtečce.
+Knihy sa dajú po uplynutí výpožičnej doby jednoducho vrátiť priamo
+tlačidlom v aplikácii. Pri ďalšej synchronizácii s čítačkou sa knihy
+zmažú aj z čítačky.
 
-Účelem aplikace není nekalé kopírování, ale umožnit
-lidem plnohodnotný čtenářský zážitek a komfort.
+Účelom aplikácie nie je nekalé kopírovanie, ale umožniť
+ľuďom plnohodnotný čitateľský zážitok a komfort.
 
-## Instalace z balíčků
+## Inštalácia
 
-V sekci ["Releases"](https://github.com/thalman/neknihy/releases)
-najdete balíčky pro Fedora Linux, Window a MacOS.
+Neknihy NextGen zatiaľ nemajú vlastné inštalačné balíčky. Balíčky
+v [Releases pôvodného projektu](https://github.com/thalman/neknihy/releases)
+obsahujú pôvodné Neknihy bez noviniek z NextGen (webové rozhranie, katalóg
+knižnice, audioknihy). Odporúčaný spôsob je Docker Compose, desktopovú
+aplikáciu spustíte zo zdrojových kódov (pozri nižšie).
 
-### Linux
+### Docker Compose (odporúčané)
 
-Ze sekce ["Releases"](https://github.com/thalman/neknihy/releases)
-si stáhnete balíček s aplikací na disk a nainstalujte ho
+Hotový obraz `ghcr.io/misko903/neknihy:latest` (amd64 aj arm64, teda aj
+Raspberry Pi a väčšina NAS) sa zostavuje automaticky z vetvy `main`.
 
-    sudo dnf install ./neknihy*.rpm
+1. Vytvorte priečinok, napr. `neknihy`, a v ňom súbor `docker-compose.yml`:
 
-### Windows
+    ```yaml
+    services:
+      neknihy:
+        image: ghcr.io/misko903/neknihy:latest
+        container_name: neknihy
+        restart: unless-stopped
+        user: "1000:1000"                 # vaše UID:GID (príkaz `id`)
+        ports:
+          - "8478:8478"
+        environment:
+          TZ: "Europe/Bratislava"
+          NEKNIHY_WEB_PASSWORD: "zmen-ma" # heslo do webového rozhrania
+        volumes:
+          - ./config:/config              # nastavenia
+          - ./books:/books                # stiahnuté knihy
+          # - /cesta/k/audiobookshelf:/audiobooks
+          # - /cesta/k/calibre-web/ingest:/reader
+    ```
 
-Ze sekce ["Releases"](https://github.com/thalman/neknihy/releases)
-si stáhnete balíček (zip) pro windows na disk. Rozbalte ho a spusťte
-aplikaci neknihy.exe
+2. Vytvorte priečinky pre dáta a spustite kontajner:
 
-Některé antiviry mohou považovat stažené soubory za podezřelé.
-V takovém případě buď nastavte vyjímku v antivirovém programu a nebo
-nainstalujte aplikaci ze zdrojových kódů.
+    ```bash
+    mkdir -p config books
+    docker compose up -d
+    ```
 
-### MacOS X
+3. Otvorte `http://<adresa-servera>:8478`, prihláste sa ľubovoľným menom
+   a heslom z `NEKNIHY_WEB_PASSWORD` a v Nastaveniach zadajte e-mail a heslo
+   Palmknihy (prípadne aj prihlásenie do katalógu knižnice).
 
-MacOS build je momentálně nedostupný. Instalujte pomocí homebrew (viz níže).
+Aktualizácia na novú verziu:
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+Podrobnejší príklad so všetkými voľbami (aj pre Synology Container Manager)
+je v [docker-compose.yml](docker-compose.yml) v tomto repozitári. Ten obraz
+zostavuje priamo z GitHubu, takže nepotrebuje register.
 
 ## Headless / Docker
 
-Neknihy lze spustit i bez desktopového GUI, například v Dockeru na NAS.
-Kontejner obsahuje jednoduché webové rozhraní (výchozí port `8478`), kde
-zadáte přihlašovací údaje, vidíte výpůjčky a můžete ručně spustit
-obnovení, stažení, synchronizaci nebo smazání prošlých výpůjček.
-V nastaveném intervalu (výchozí 6 h) běží vše automaticky.
+Neknihy sa dajú spustiť aj bez desktopového GUI, napríklad v Dockeri na NAS.
+Kontajner obsahuje jednoduché webové rozhranie (predvolený port `8478`), kde
+zadáte prihlasovacie údaje, vidíte výpožičky a môžete ručne spustiť
+obnovenie, stiahnutie, synchronizáciu alebo zmazanie prepadnutých výpožičiek.
+V nastavenom intervale (predvolene 6 h) beží všetko automaticky.
 
-    docker compose up -d
-    # http://<nas>:8478
-
-Nastavení z webu se ukládá do `/config` (heslo k Palmknihy v čitelné
-podobě, stejně jako u desktopové verze). Webové rozhraní chraňte heslem
+Nastavenia z webu sa ukladajú do `/config` (heslo k Palmknihy v čitateľnej
+podobe, rovnako ako pri desktopovej verzii). Webové rozhranie chráňte heslom
 (`NEKNIHY_WEB_PASSWORD`) a nevystavujte ho do internetu.
 
-| Proměnná | Výchozí | Popis |
+| Premenná | Predvolená | Popis |
 |---|---|---|
-| `NEKNIHY_WEB_PORT` | `8478` | port webového rozhraní |
-| `NEKNIHY_WEB_PASSWORD` | – | heslo pro webové rozhraní (libovolné jméno) |
-| `NEKNIHY_LANG` | – | výchozí jazyk webu (`cs`, `sk`, `en`, `de`); jinak podle prohlížeče, záložně čeština. Každý prohlížeč si jazyk může změnit v Nastavení (včetně volby „Automaticky (podle prohlížeče)“) |
-| `NEKNIHY_CONFIG_DIR` | `/config` | složka pro nastavení |
-| `NEKNIHY_EMAIL` | – | počáteční e-mail Palmknihy |
-| `NEKNIHY_PASSWORD` | – | počáteční heslo Palmknihy |
-| `NEKNIHY_WORKDIR` | `/books` | složka pro stažené knihy |
-| `NEKNIHY_READERDIR` | – | volitelná složka pro synchronizaci |
-| `NEKNIHY_AUDIODIR` | – | složka pro audioknihy, např. knihovna Audiobookshelf; audioknihy se ukládají jako `Autor/Název/` (kapitoly MP3) a do složky se přesunou až celé stažené. Pokud není nastavena a v kontejneru existuje `/audiobooks`, použije se ta. Prázdné = složka pro knihy |
-| `NEKNIHY_INTERVAL` | `21600` | počáteční interval v sekundách, `0` = vypnuto |
-| `NEKNIHY_AUTO_RETURN` | `1` | mazat soubory prošlých výpůjček |
-| `NEKNIHY_INGEST` | `0` | `1` = složka pro synchronizaci je ingest složka Calibre-Web Automated / NextGen; každá kniha se do ní zkopíruje jen jednou |
-| `NEKNIHY_CONVERT` | `0` | převod na .mobi (vyžaduje Calibre, v obrazu není) |
-| `NEKNIHY_DEBUG` | `0` | výpis HTTP komunikace |
-| `NEKNIHY_TSK_USERNAME` | – | počáteční přihlášení do katalogu knihovny (katalog.tsk.sk) |
-| `NEKNIHY_TSK_PASSWORD` | – | počáteční heslo do katalogu knihovny |
-| `NEKNIHY_TSK_LIBRARY` | `vkmr` | kód knihovny z adresy katalogu (`katalog.tsk.sk/library/<kód>/`) |
+| `NEKNIHY_WEB_PORT` | `8478` | port webového rozhrania |
+| `NEKNIHY_WEB_PASSWORD` | – | heslo do webového rozhrania (ľubovoľné meno) |
+| `NEKNIHY_LANG` | – | predvolený jazyk webu (`cs`, `sk`, `en`, `de`); inak podľa prehliadača, záložne čeština. Každý prehliadač si jazyk môže zmeniť v Nastaveniach (vrátane voľby „Automaticky (podľa prehliadača)“) |
+| `NEKNIHY_CONFIG_DIR` | `/config` | priečinok pre nastavenia |
+| `NEKNIHY_EMAIL` | – | počiatočný e-mail Palmknihy |
+| `NEKNIHY_PASSWORD` | – | počiatočné heslo Palmknihy |
+| `NEKNIHY_WORKDIR` | `/books` | priečinok pre stiahnuté knihy |
+| `NEKNIHY_READERDIR` | – | voliteľný priečinok na synchronizáciu |
+| `NEKNIHY_AUDIODIR` | – | priečinok pre audioknihy, napr. knižnica Audiobookshelf; audioknihy sa ukladajú ako `Autor/Názov/` (kapitoly MP3) a do priečinka sa presunú až celé stiahnuté. Ak nie je nastavený a v kontajneri existuje `/audiobooks`, použije sa ten. Prázdne = priečinok pre knihy |
+| `NEKNIHY_INTERVAL` | `21600` | počiatočný interval v sekundách, `0` = vypnuté |
+| `NEKNIHY_AUTO_RETURN` | `1` | mazať súbory prepadnutých výpožičiek |
+| `NEKNIHY_INGEST` | `0` | `1` = priečinok na synchronizáciu je ingest priečinok Calibre-Web Automated / NextGen; každá kniha sa doň skopíruje len raz |
+| `NEKNIHY_CONVERT` | `0` | prevod na .mobi (vyžaduje Calibre, v obraze nie je) |
+| `NEKNIHY_DEBUG` | `0` | výpis HTTP komunikácie |
+| `NEKNIHY_TSK_USERNAME` | – | počiatočné prihlásenie do katalógu knižnice (katalog.tsk.sk) |
+| `NEKNIHY_TSK_PASSWORD` | – | počiatočné heslo do katalógu knižnice |
+| `NEKNIHY_TSK_LIBRARY` | `vkmr` | kód knižnice z adresy katalógu (`katalog.tsk.sk/library/<kód>/`) |
 
-Hodnoty `NEKNIHY_EMAIL` … `NEKNIHY_AUTO_RETURN` a `NEKNIHY_TSK_*` slouží jen
-jako počáteční, dále platí to, co uložíte ve webovém rozhraní.
+Hodnoty `NEKNIHY_EMAIL` … `NEKNIHY_AUTO_RETURN` a `NEKNIHY_TSK_*` slúžia len
+ako počiatočné, ďalej platí to, čo uložíte vo webovom rozhraní.
 
-### Půjčování z katalogu knihovny (katalog.tsk.sk)
+### Požičiavanie z katalógu knižnice (katalog.tsk.sk)
 
-Knihovny Trenčianskeho samosprávneho kraja (např. VKMR Trenčín) půjčují
-e-knihy Palmknihy přes svůj online katalog. Na hlavní stránce je pole
-„Hledat a půjčit e-knihu“: zadejte název, autora nebo ISBN a Neknihy zobrazí
-e-knihy z katalogu (hledání nevyžaduje přihlášení). Po vyplnění přihlášení
-ke katalogu v nastavení má každá kniha tlačítko „Půjčit“; Neknihy ji vypůjčí
-a hned stáhne z Palmknihy (a případně synchronizuje). Knihy, které už máte
-vypůjčené, jsou ve výsledcích označené. Místo hledání lze vložit i odkaz
-na knihu v katalogu nebo její ID díla (`workId`).
+Knižnice Trenčianskeho samosprávneho kraja (napr. VKMR Trenčín) požičiavajú
+e-knihy Palmknihy cez svoj online katalóg. Na hlavnej stránke je pole
+„Hľadať a požičať e-knihu“: zadajte názov, autora alebo ISBN a Neknihy zobrazia
+e-knihy z katalógu (hľadanie nevyžaduje prihlásenie). Po vyplnení prihlásenia
+do katalógu v nastaveniach má každá kniha tlačidlo „Požičať“; Neknihy ju vypožičajú
+a hneď stiahnu z Palmknihy (a prípadne synchronizujú). Knihy, ktoré už máte
+vypožičané, sú vo výsledkoch označené. Namiesto hľadania sa dá vložiť aj odkaz
+na knihu v katalógu alebo jej ID diela (`workId`).
 
-Z příkazové řádky:
-`python3 src/neknihy_cli.py --search poirot` (vypíše `workId` nalezených e-knih),
+Z príkazového riadka:
+`python3 src/neknihy_cli.py --search poirot` (vypíše `workId` nájdených e-kníh),
 `NEKNIHY_TSK_USERNAME=... NEKNIHY_TSK_PASSWORD=... NEKNIHY_EMAIL=... NEKNIHY_PASSWORD=... python3 src/neknihy_cli.py --borrow 1439847`
 
-Webové rozhraní je v češtině, slovenštině, angličtině a němčině. Jazyk se
-vybírá podle prohlížeče a dá se přepnout v záhlaví stránky. Překlady jsou
-v `src/neknihy/locales/*.json`; nový jazyk přidáte zkopírováním `en.json`
-pod kódem jazyka (např. `pl.json`) a přeložením hodnot. Chybějící texty se
-zobrazí anglicky. Kontrola překladů: `python3 -m unittest discover tests`.
+Webové rozhranie je v češtine, slovenčine, angličtine a nemčine. Jazyk sa
+vyberá podľa prehliadača a dá sa prepnúť v záhlaví stránky. Preklady sú
+v `src/neknihy/locales/*.json`; nový jazyk pridáte skopírovaním `en.json`
+pod kódom jazyka (napr. `pl.json`) a preložením hodnôt. Chýbajúce texty sa
+zobrazia po anglicky. Kontrola prekladov: `python3 -m unittest discover tests`.
 
-Jednorázově bez webu (např. z cronu):
+Jednorazovo bez webu (napr. z cronu):
 `NEKNIHY_EMAIL=... NEKNIHY_PASSWORD=... python3 src/neknihy_cli.py --once --workdir ~/knihy`
 
-## Screenshot
+## Snímka obrazovky
 
-![mainwindow](contrib/screenshot.png "Screenshot")
+![Webové rozhranie: vyhľadávanie v katalógu knižnice](contrib/screenshot.png "Webové rozhranie")
 
-## Podpora mobi a kindle
+## Podpora mobi a Kindle
 
-Pokud máte nainstalovanou aplikaci [Calibre](https://calibre-ebook.com/),
-mohou Neknihy převést vypůjčenou publikaci do formátu `mobi` automaticky.
-V záložce `Nastavení` zatrhněte volbu `Převádět na .mobi` a vyplňte cestu
-k programu `ebook-convert` (součást Calibre).
+Ak máte nainštalovanú aplikáciu [Calibre](https://calibre-ebook.com/),
+Neknihy môžu vypožičanú publikáciu automaticky previesť do formátu `mobi`.
+V desktopovej aplikácii v záložke `Nastavení` zaškrtnite voľbu
+`Převádět .epub na .mobi (pro Kindle)` a vyplňte cestu k programu
+`ebook-convert` (súčasť Calibre). V Dockeri na to slúži `NEKNIHY_CONVERT`,
+Calibre však v obraze nie je.
 
-### Cesta k programu `ebook-convert` pro MacOS
+### Cesta k programu `ebook-convert` pre macOS
 
     /Applications/calibre.app/Contents/MacOS/ebook-convert
 
-## Instalace ze zdrojových kódů
+## Inštalácia zo zdrojových kódov
+
+Zdrojové kódy získate cez git:
+
+    git clone https://github.com/misko903/neknihy.git
+
+alebo ako [zip archív vetvy main](https://github.com/misko903/neknihy/archive/refs/heads/main.zip)
+(rozbalí sa do priečinka `neknihy-main`). V príkladoch nižšie je priečinok
+so zdrojákmi `neknihy`.
+
+Desktopová aplikácia (`src/neknihy.py`) je pôvodné okno Neknihy v češtine;
+webové rozhranie spustíte aj bez Dockeru príkazom
+`NEKNIHY_CONFIG_DIR=~/.config/neknihy-web NEKNIHY_WORKDIR=~/knihy python3 src/neknihy_web.py`
+(potom http://localhost:8478).
 
 ### Linux
 
-Ze sekce ["Releases"](https://github.com/thalman/neknihy/releases)
-si stáhněte archiv se zdrojovým kódem. Nainstalujte python3 z distribuce.
-Doinstalujte závislosti a spusťte aplikaci. Příklad pro Fedora Linux:
+Nainštalujte python3 z distribúcie, doinštalujte závislosti a spustite
+aplikáciu. Príklad pre Fedora Linux:
 
     sudo dnf install python3 python3-requests python3-gobject
-    tar -xzf ./neknihy-${RELEASE}.tar.gz
-    ./neknihy-${RELEASE}/src/neknihy.py
+    ./neknihy/src/neknihy.py
 
-Příklad instalace s python virtual environment
+Príklad inštalácie s python virtual environment
 
     sudo dnf install python3
-    tar -xzf ./neknihy-${RELEASE}.tar.gz
-    cd ./neknihy-${RELEASE}
+    cd ./neknihy
     python -m venv venv
     source venv/bin/activate
     pip install -r src/REQUIREMENTS.txt
     ./src/neknihy.py
 
-Pokud máte potíže s instalací `PyGObject`, použijte místo něho
+Ak máte problémy s inštaláciou `PyGObject`, použite namiesto neho
 `platformdirs` (`pip install platformdirs`)
 
 ### Windows
 
-Aplikace pro svůj běh potřebuje Python, stáhněte si a nainstaluje
-[Python z oficiálního zdroje](https://www.python.org/downloads/windows/).
-Při instalaci vyberte volbu "add python.exe to PATH".
+Aplikácia na svoj beh potrebuje Python, stiahnite si a nainštalujte
+[Python z oficiálneho zdroja](https://www.python.org/downloads/windows/).
+Pri inštalácii vyberte voľbu "add python.exe to PATH".
 
-Spusťe si příkazový řádek (cmd) a přesvěčte se, že Python je správně
-nainstalován a je možné ho spustit
+Spustite si príkazový riadok (cmd) a presvedčte sa, že Python je správne
+nainštalovaný a dá sa spustiť
 
     c:\...> python --version
     Python 3.11.6
 
-Stáhněte si [zdrojové kódy](https://github.com/thalman/neknihy/releases)
-aplikace neknihy (Source code) a rozbalte je na disk. V příkazovém
-řádku doinstalujte potřebné závislosti. Volitelně můžete změnit příponu
-souboru z .py na .pyw:
+Stiahnite si [zdrojové kódy](https://github.com/misko903/neknihy/archive/refs/heads/main.zip)
+a rozbaľte ich na disk. V príkazovom
+riadku doinštalujte potrebné závislosti. Voliteľne môžete zmeniť príponu
+súboru z .py na .pyw:
 
     c:\...> cd .....\neknihy\src
     c:\...> python -m pip install -r REQUIREMENTS.txt
     c:\...> copy neknihy.py neknihy.pyw
 
-Aplikace připravena k použití, spustíte ji poklikáním na soubor neknihy.py nebo
+Aplikácia je pripravená na použitie, spustíte ju dvojklikom na súbor neknihy.py alebo
 neknihy.pyw
 
-### MacOS (s procesory Intel i Apple Silicon (M1 a novější))
+### macOS (s procesormi Intel aj Apple Silicon (M1 a novšie))
 
-Ze sekce ["Releases"](https://github.com/thalman/neknihy/releases)
-si stáhněte archiv se zdrojovým kódem. Nainstalujte python3 a knihovnu Tkniter. Doinstalujte závislosti a spusťte apliaci.
+Stiahnite si zdrojové kódy (pozri vyššie). Nainštalujte python3 a knižnicu Tkinter. Doinštalujte závislosti a spustite aplikáciu.
 
-#### Příklad instalace přes Homebrew
-
-    brew install python3
-    brew install python-tk
-    tar -xzf ./neknihy-${RELEASE}.tar.gz
-    ./neknihy-${RELEASE}/src/neknihy.py
-
-#### Příklad instalace přes Homebrew a python virtual environment
+#### Príklad inštalácie cez Homebrew
 
     brew install python3
     brew install python-tk
-    tar -xzf ./neknihy-${RELEASE}.tar.gz
-    cd ./neknihy-${RELEASE}
+    ./neknihy/src/neknihy.py
+
+#### Príklad inštalácie cez Homebrew a python virtual environment
+
+    brew install python3
+    brew install python-tk
+    cd ./neknihy
     python -m venv venv
     source venv/bin/activate
     pip install -r src/REQUIREMENTS.txt
