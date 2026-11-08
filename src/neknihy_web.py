@@ -385,6 +385,15 @@ _ICON_PATHS = {
     "ok": "<circle cx='12' cy='12' r='9'/><path d='m8 12 3 3 5-6'/>",
     "audio": "<path d='M4 14v-2a8 8 0 0 1 16 0v2'/><rect x='3' y='14' width='4' height='6' rx='1'/>"
              "<rect x='17' y='14' width='4' height='6' rx='1'/>",
+    "ebook": "<path d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z'/>"
+             "<path d='M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5'/>",
+    "both": "<path d='M2 18V6a2 2 0 0 1 2-2h5v16H4a2 2 0 0 1-2-2z'/><path d='M5 4v16'/>"
+            "<path d='M12 15v-2a5 5 0 0 1 10 0v2'/><rect x='11' y='15' width='3' height='5' rx='1'/>"
+            "<rect x='20' y='15' width='3' height='5' rx='1'/>",
+    "sun": "<circle cx='12' cy='12' r='4'/><path d='M12 2v2'/><path d='M12 20v2'/>"
+           "<path d='m4.9 4.9 1.4 1.4'/><path d='m17.7 17.7 1.4 1.4'/><path d='M2 12h2'/>"
+           "<path d='M20 12h2'/><path d='m4.9 19.1 1.4-1.4'/><path d='m17.7 6.3 1.4-1.4'/>",
+    "moon": "<path d='M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z'/>",
     "expired": "<circle cx='12' cy='12' r='9'/><path d='m9 9 6 6'/><path d='m15 9-6 6'/>",
     "info": "<circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><path d='M12 8h0'/>",
     "warn": "<path d='M12 3 2 20h20z'/><path d='M12 10v4'/><path d='M12 17h0'/>",
@@ -416,7 +425,7 @@ CSS = """
 --warn:#a15c00;
 --err:#a12a2a}
 @media (prefers-color-scheme:dark){
-:root{
+:root:not([data-theme=light]){
 --bg:#161615;
 --fg:#ecebe7;
 --mut:#9b9a95;
@@ -426,6 +435,15 @@ CSS = """
 --warn:#e0a040;
 --err:#e07070}
 }
+:root[data-theme=dark]{
+--bg:#161615;
+--fg:#ecebe7;
+--mut:#9b9a95;
+--card:#1f1f1d;
+--line:#33322f;
+--acc:#6fbf8f;
+--warn:#e0a040;
+--err:#e07070}
 *{
 box-sizing:border-box}
 body{
@@ -566,6 +584,11 @@ gap:10px;
 align-items:flex-start}
 .bk .cover{
 flex:none}
+.kind{
+white-space:nowrap;
+font-size:13px}
+.kind.audio{
+color:var(--acc)}
 .tag{
 margin-left:6px;
 font-size:12px;
@@ -644,6 +667,55 @@ display:block}
 }
 .rt b{
 font-weight:600}
+.theme{
+padding:6px;
+border:0;
+background:none;
+color:var(--mut)}
+.theme:hover{
+color:var(--fg)}
+.theme .sun{
+display:none}
+@media (prefers-color-scheme:dark){
+:root:not([data-theme=light]) .theme .sun{
+display:inline}
+:root:not([data-theme=light]) .theme .moon{
+display:none}
+}
+:root[data-theme=dark] .theme .sun{
+display:inline}
+:root[data-theme=dark] .theme .moon{
+display:none}
+.seg{
+display:inline-flex;
+border:1px solid var(--line);
+border-radius:8px;
+overflow:hidden}
+.seg label{
+margin:0;
+display:flex;
+align-items:center;
+padding:0 10px;
+color:var(--mut);
+cursor:pointer}
+.seg label+label{
+border-left:1px solid var(--line)}
+.seg input{
+position:absolute;
+opacity:0;
+width:1px;
+height:1px}
+.seg .ic{
+width:20px;
+height:20px}
+.seg label:hover{
+color:var(--fg)}
+.seg input:checked+label{
+background:var(--acc);
+color:#fff}
+.seg input:focus-visible+label{
+outline:2px solid var(--acc);
+outline-offset:-2px}
 @media (max-width:600px){
 header{
 flex-wrap:wrap;
@@ -671,14 +743,28 @@ def page(t, title, body, path="/", refresh=None):
             "<meta name='viewport' content='width=device-width,initial-scale=1'>%s"
             "<title>%s</title><link rel='icon' type='image/png' href='/favicon.png'>"
             "<link rel='apple-touch-icon' href='/apple-touch-icon.png'>"
-            "<style>%s</style></head><body>"
+            "<style>%s</style><script>%s</script></head><body>"
             "<header><h1><img src='/icon.png' alt=''>Neknihy</h1><nav>%s</nav>"
+            "<button type='button' class='theme' onclick='nkTheme()' title='%s' "
+            "aria-label='%s'>%s%s</button>"
             "</header><main>%s</main></body></html>"
-            % (t.lang, meta, esc(title), CSS, "".join(
+            % (t.lang, meta, esc(title), CSS, THEME_JS, "".join(
                 "<a href='%s'%s>%s%s</a>" % (
                     href, " class='on' aria-current='page'" if href == path else "",
                     icon(ic), esc(t(key)))
-                for href, ic, key in TABS), body))
+                for href, ic, key in TABS), esc(t("theme.toggle")), esc(t("theme.toggle")),
+               icon("moon", "ic moon"), icon("sun", "ic sun"), body))
+
+
+# Applied in <head> so the saved theme is set before the first paint; the
+# choice is per browser (localStorage), the system setting is the default.
+THEME_JS = (
+    "(function(){try{var v=localStorage.getItem('theme');"
+    "if(v)document.documentElement.setAttribute('data-theme',v)}catch(e){}})();"
+    "function nkTheme(){var r=document.documentElement,c=r.getAttribute('data-theme')"
+    "||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'),"
+    "n=c=='dark'?'light':'dark';r.setAttribute('data-theme',n);"
+    "try{localStorage.setItem('theme',n)}catch(e){}}")
 
 
 # Navigation tabs: (path, icon, label key)
@@ -697,6 +783,14 @@ def sort_th(label, kind="text", cls="", first="asc"):
     """Header of a sortable column (kind "text" or "num"; see TABLE_JS)."""
     return ("<th class='sort%s' data-type='%s' data-first='%s'><button type='button'>%s"
             "</button></th>" % (" " + cls if cls else "", kind, first, esc(label)))
+
+
+def kind_cell(t, audio):
+    """Cell saying whether a title is an e-book or an audiobook."""
+    label = t("kind.audio_tag" if audio else "kind.ebook_tag")
+    return ("<td data-v='%s' title='%s'><span class='st kind%s'>%s<span class='hide-sm'>%s"
+            "</span></span></td>" % (esc(label), esc(label), " audio" if audio else "",
+                                      icon("audio" if audio else "ebook"), esc(label)))
 
 
 def filter_box(t, table_id):
@@ -785,12 +879,16 @@ if(!r.ok)throw r;return r.json();}).then(function(d){fill(d,false);next();})
 
 
 def search_form(t, query="", kind="ebook"):
-    options = "".join("<option value='%s'%s>%s</option>" % (
-        k, " selected" if k == kind else "", esc(t("kind." + k))) for k in katalog.KINDS)
+    icons = {"ebook": "ebook", "audiobook": "audio", "all": "both"}
+    options = "".join(
+        "<input type='radio' name='kind' value='%s' id='kind-%s'%s>"
+        "<label for='kind-%s' title='%s' aria-label='%s'>%s</label>" % (
+            k, k, " checked" if k == kind else "", k, esc(t("kind." + k)),
+            esc(t("kind." + k)), icon(icons[k])) for k in katalog.KINDS)
     return ("<form method='get' action='/search' class='actions'>"
             "<input type='search' name='q' value='%s' required style='flex:1;min-width:200px' "
             "placeholder='%s' aria-label='%s'>"
-            "<select name='kind' aria-label='%s'>%s</select>"
+            "<span class='seg' role='radiogroup' aria-label='%s'>%s</span>"
             "<button class='primary'>%s<span>%s</span></button></form>" % (
                 esc(query), esc(t("search.placeholder")), esc(t("search.placeholder")),
                 esc(t("kind.label")), options, icon("search"), esc(t("btn.search"))))
@@ -864,23 +962,23 @@ def render_search(svc, t, query, page_no, kind="ebook"):
             action = ""
         cover = ("<img src='%s' alt='' loading='lazy' class='cover'>" % esc(r["cover"])
                  if r["cover"] else "")
-        badge = ("<span class='st tag'>%s%s</span>" % (icon("audio"), esc(t("kind.audio_tag")))
-                 if r.get("audiobook") else "")
         authors = "; ".join(r["authors"])
         rows.append(
             "<tr><td class='hide-sm'>%s</td><td data-v='%s'><a href='%s/detail/%d' "
-            "target='_blank' rel='noopener'>%s</a>%s<div class='mut'>%s</div></td>"
+            "target='_blank' rel='noopener'>%s</a><div class='mut'>%s</div></td>%s"
             "<td class='hide-sm' data-v='%s'>%s</td>%s<td>%s</td></tr>" % (
                 cover, esc(r["title"]), lib_url, r["work_id"],
-                esc(r["title"] or r["work_id"]), badge, esc(r["publish_info"]),
+                esc(r["title"] or r["work_id"]), esc(r["publish_info"]),
+                kind_cell(t, r.get("audiobook")),
                 esc(authors), esc(authors), rating_cell(svc, t, r["palm_id"]), action))
     if rows:
         table = ("<p class='mut'>%s</p>%s<table class='sortable' id='search' %s><thead><tr>"
-                 "<th class='hide-sm'></th>%s%s%s<th></th></tr></thead><tbody>%s</tbody>"
+                 "<th class='hide-sm'></th>%s%s%s%s<th></th></tr></thead><tbody>%s</tbody>"
                  "</table>%s" % (
                      esc(t("search.results_" + res["kind"], n=res["total"])),
                      filter_box(t, "search"), rating_attrs(t),
-                     sort_th(t("th.book")), sort_th(t("th.author"), cls="hide-sm"),
+                     sort_th(t("th.book")), sort_th(t("th.type")),
+                     sort_th(t("th.author"), cls="hide-sm"),
                      sort_th(t("th.rating"), "num", first="desc"), "".join(rows), TABLE_JS))
     else:
         table = "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("search.none")))
@@ -910,20 +1008,21 @@ def render_index(svc, t):
         authors = app.bookAuthors(b)
         rows.append(
             "<tr><td data-v='%s'><div class='bk'>%s<div>%s<div class='mut only-sm'>%s</div>"
-            "</div></div></td><td class='hide-sm' data-v='%s'>%s</td>"
+            "</div></div></td>%s<td class='hide-sm' data-v='%s'>%s</td>"
             "<td class='hide-sm' data-v='%s'>%s</td>"
             "<td data-v='%d'><span class='st st-%s'>%s%s</span></td>%s"
             "<td class='hide-sm mut' data-v='%s'>%s</td></tr>" % (
-                esc(title), cover, esc(title), esc(authors), esc(authors), esc(authors),
+                esc(title), cover, esc(title), esc(authors), kind_cell(t, isAudiobook(b)),
+                esc(authors), esc(authors),
                 esc(b.get("end_time") or ""), fmt_date(t, b.get("end_time", "")),
                 STATUSES.index(st) if st in STATUSES else len(STATUSES), esc(st),
                 icon(st) if st in STATUSES else "", esc(label), rating_cell(svc, t, webId(b)),
                 esc(b.get("neknihy", {}).get("filename", "")),
                 esc(b.get("neknihy", {}).get("filename", ""))))
-    table = ("%s<table class='sortable' id='loans' %s><thead><tr>%s%s%s%s%s%s</tr></thead>"
+    table = ("%s<table class='sortable' id='loans' %s><thead><tr>%s%s%s%s%s%s%s</tr></thead>"
              "<tbody>%s</tbody></table>%s" % (
                  filter_box(t, "loans"), rating_attrs(t), sort_th(t("th.book")),
-                 sort_th(t("th.author"), cls="hide-sm"), sort_th(t("th.due"), cls="hide-sm"),
+                 sort_th(t("th.type")), sort_th(t("th.author"), cls="hide-sm"), sort_th(t("th.due"), cls="hide-sm"),
                  sort_th(t("th.status")), sort_th(t("th.rating"), "num", first="desc"),
                  sort_th(t("th.file"), cls="hide-sm"), "".join(rows), TABLE_JS)
              if rows else "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("empty"))))
