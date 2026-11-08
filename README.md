@@ -23,13 +23,9 @@ od Tomáša Halmana.
 
 ## Motivácia
 
-Niektoré knižnice v ČR požičiavajú aj e-knihy, čo je skvelé. Žiaľ,
+Niektoré knižnice v ČR a SR požičiavajú aj e-knihy a audioknihy, čo je skvelé. Žiaľ,
 mobilná aplikácia na čítanie nemá veľmi dobré hodnotenie a na veľkom
 množstve čítačiek nefunguje dobre alebo vôbec.
-
-Preto som vytvoril túto aplikáciu, ktorá umožňuje pracovať
-s výpožičkami na desktope. Knihy je možné stiahnuť do vybraného
-priečinka, odkiaľ sa synchronizujú s vybraným priečinkom v čítačke.
 
 Knihy sa dajú po uplynutí výpožičnej doby jednoducho vrátiť priamo
 tlačidlom v aplikácii. Pri ďalšej synchronizácii s čítačkou sa knihy
