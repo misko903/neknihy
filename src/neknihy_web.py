@@ -388,7 +388,8 @@ _ICON_PATHS = {
     "ebook": "<path d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z'/>"
              "<path d='M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5'/>",
     "both": "<path d='M2 18V6a2 2 0 0 1 2-2h5v16H4a2 2 0 0 1-2-2z'/><path d='M5 4v16'/>"
-            "<path d='M12 15v-2a5 5 0 0 1 10 0v2'/><rect x='11' y='15' width='3' height='5' rx='1'/>"
+            "<path d='M12 15v-2a5 5 0 0 1 10 0v2'/>"
+            "<rect x='11' y='15' width='3' height='5' rx='1'/>"
             "<rect x='20' y='15' width='3' height='5' rx='1'/>",
     "sun": "<circle cx='12' cy='12' r='4'/><path d='M12 2v2'/><path d='M12 20v2'/>"
            "<path d='m4.9 4.9 1.4 1.4'/><path d='m17.7 17.7 1.4 1.4'/><path d='M2 12h2'/>"
@@ -790,7 +791,7 @@ def kind_cell(t, audio):
     label = t("kind.audio_tag" if audio else "kind.ebook_tag")
     return ("<td data-v='%s' title='%s'><span class='st kind%s'>%s<span class='hide-sm'>%s"
             "</span></span></td>" % (esc(label), esc(label), " audio" if audio else "",
-                                      icon("audio" if audio else "ebook"), esc(label)))
+                                     icon("audio" if audio else "ebook"), esc(label)))
 
 
 def filter_box(t, table_id):
@@ -1022,7 +1023,8 @@ def render_index(svc, t):
     table = ("%s<table class='sortable' id='loans' %s><thead><tr>%s%s%s%s%s%s%s</tr></thead>"
              "<tbody>%s</tbody></table>%s" % (
                  filter_box(t, "loans"), rating_attrs(t), sort_th(t("th.book")),
-                 sort_th(t("th.type")), sort_th(t("th.author"), cls="hide-sm"), sort_th(t("th.due"), cls="hide-sm"),
+                 sort_th(t("th.type")), sort_th(t("th.author"), cls="hide-sm"),
+                 sort_th(t("th.due"), cls="hide-sm"),
                  sort_th(t("th.status")), sort_th(t("th.rating"), "num", first="desc"),
                  sort_th(t("th.file"), cls="hide-sm"), "".join(rows), TABLE_JS)
              if rows else "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("empty"))))
