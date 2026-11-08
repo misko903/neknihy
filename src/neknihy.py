@@ -93,7 +93,7 @@ class Neknihy():
         resources = self._resourcesFolder()
         self._window = tk.Tk()
         self._window.option_add('*Dialog.msg.font', 'Helvetica 12')
-        self._window.title("Neknihy")
+        self._window.title("Neknihy NextGen")
         self._window.geometry("1000x600")
         self._window.minsize(600, 400)
         self._icon = tk.PhotoImage(file=os.path.join(resources, 'neknihy.png'))

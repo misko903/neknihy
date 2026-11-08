@@ -1,4 +1,4 @@
-# Neknihy – web UI + automatické sťahovanie výpožičiek Palmknihy
+# Neknihy NextGen – web UI + automatické sťahovanie výpožičiek Palmknihy
 #
 # Synology (Container Manager → Projekt → Vytvoriť):
 #   1. Vytvor priečinky /volume1/docker/neknihy/config a /volume1/docker/neknihy/books

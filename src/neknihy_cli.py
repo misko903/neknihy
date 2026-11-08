@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Headless (CLI / Docker) runner for Neknihy.
+"""Headless (CLI / Docker) runner for Neknihy NextGen.
 
 Configuration is read from environment variables so the app can run
 without a GUI and without a config file:
@@ -177,7 +177,7 @@ def print_search(query, kind="ebook"):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Neknihy headless runner")
+    parser = argparse.ArgumentParser(description="Neknihy NextGen headless runner")
     parser.add_argument("--once", action="store_true", help="run once and exit")
     parser.add_argument("--workdir", help="override NEKNIHY_WORKDIR")
     parser.add_argument("--readerdir", help="override NEKNIHY_READERDIR")
