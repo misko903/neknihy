@@ -568,8 +568,11 @@ display:none}
 form.del{
 margin:0}
 form.del button{
-padding:4px 8px;
+padding:4px 6px;
 color:var(--mut)}
+form.del .ic{
+width:18px;
+height:18px}
 form.del button:hover{
 color:#c0392b;
 border-color:#c0392b}
@@ -1054,11 +1057,10 @@ def render_index(svc, t):
         delete = ("<td><form method='post' action='/delete' class='del' "
                   "data-confirm='%s'><input type='hidden' name='palm_id' value='%s'>"
                   "<input type='hidden' name='audio' value='%d'>"
-                  "<button title='%s' aria-label='%s'>%s<span class='hide-sm'>%s</span>"
-                  "</button></form></td>" % (
+                  "<button title='%s' aria-label='%s'>%s</button></form></td>" % (
                       esc(t("delete.confirm", title=title)), esc(b.get("palm_id", "")),
                       isAudiobook(b), esc(t("btn.delete")), esc(t("btn.delete")),
-                      icon("delete"), esc(t("btn.delete"))))
+                      icon("delete")))
         rows.append(
             "<tr><td data-v='%s'><div class='bk'>%s<div>%s<div class='mut only-sm'>%s</div>"
             "</div></div></td>%s<td class='hide-sm' data-v='%s'>%s</td>%s"
