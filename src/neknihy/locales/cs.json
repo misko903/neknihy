@@ -35,6 +35,7 @@
   "set.password_keep": "(ponechte prázdné pro zachování)",
   "set.workdir": "Složka pro knihy (v kontejneru)",
   "set.readerdir": "Složka pro synchronizaci (čtečka, ingest Calibre-Web; prázdné = vypnuto)",
+  "set.audiodir": "Složka pro audioknihy (např. knihovna Audiobookshelf – ukládá se jako Autor/Název; prázdné = složka pro knihy)",
   "set.interval": "Interval automatického běhu (hodiny, 0 = vypnuto)",
   "set.auto_return": "Automaticky mazat prošlé výpůjčky",
   "set.convert": "Převádět na .mobi (vyžaduje Calibre)",

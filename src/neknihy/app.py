@@ -7,7 +7,7 @@ import json
 import re
 import subprocess
 from datetime import datetime, timezone
-from shutil import copy, rmtree
+from shutil import copy, move, rmtree
 
 # Audiobook files: kept in workdir, but never sent to the e-reader / ingest
 # folder (readers and Calibre cannot use them).
@@ -17,6 +17,14 @@ AUDIO_EXTENSIONS = (".mp3", ".m4a", ".m4b", ".aac", ".ogg", ".opus", ".flac", ".
 
 def isAudioFile(filename):
     return os.path.splitext(filename or "")[1].lower() in AUDIO_EXTENSIONS
+
+
+def safeName(text, fallback="Audiokniha"):
+    """A readable folder name: 'Agatha Christie' stays, only characters that
+    file systems refuse are dropped."""
+    text = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', " ", text or "")
+    text = re.sub(r"\s+", " ", text).strip(" .")
+    return text[:120].rstrip(" .") or fallback
 
 
 class App():
@@ -29,9 +37,9 @@ class App():
         self.loadBooks()
 
     def updateSettings(self, email, password, workdir, readerdir, convert, convertor,
-                       **katalog):
+                       **extra):
         self.settings.update(email, password, workdir, readerdir, convert, convertor,
-                             **katalog)
+                             **extra)
         self.api.logout()
         self.katalog = None
         self.loadBooks()
@@ -136,11 +144,31 @@ class App():
             return None
         return self.books[index]
 
+    def audioRoot(self):
+        """Folder for audiobooks: the audiobook folder setting, else workdir."""
+        return self.settings.audiodir or self.settings.workdir
+
+    def audioLibrary(self):
+        """True if audiobooks go to their own folder (e.g. an Audiobookshelf
+        library), laid out as <Author>/<Title>/."""
+        audiodir = self.settings.audiodir
+        return bool(audiodir) and (
+            os.path.normpath(os.path.abspath(audiodir)) !=
+            os.path.normpath(os.path.abspath(self.settings.workdir or "")))
+
+    def bookRoot(self, index):
+        """Folder the book's file is in. Audiobooks remember where they were
+        downloaded ("dir"), so changing the setting does not lose them."""
+        book = self.books[index]
+        if self.bookIsAudio(index):
+            return book["neknihy"].get("dir") or self.settings.workdir
+        return self.settings.workdir
+
     def bookFile(self, index):
         filename = self.books[index]["neknihy"]["filename"]
         if filename == "":
             return None
-        return os.path.join(self.settings.workdir, filename)
+        return os.path.join(self.bookRoot(index), filename)
 
     def bookFileExists(self, index):
         path = self.bookFile(index)
@@ -153,6 +181,14 @@ class App():
             path = self.bookFile(index)
             if os.path.isdir(path):  # audiobook: folder of chapters
                 rmtree(path)
+                # <Author>/ folder of an audiobook library, if now empty
+                parent = os.path.dirname(path)
+                root = self.bookRoot(index)
+                if os.path.normpath(parent) != os.path.normpath(root):
+                    try:
+                        os.rmdir(parent)
+                    except OSError:
+                        pass
             else:
                 os.remove(path)
 
@@ -163,8 +199,18 @@ class App():
         if "neknihy" not in book:
             return False
         if book["neknihy"]["status"] in ["ok", "expired"]:
-            return self.bookFileExists(index)
+            if not self.bookFileExists(index):
+                return False
+            if self.bookIsAudio(index) and book["neknihy"]["status"] == "ok":
+                # audiobook folder setting changed: move it over (downloadBook)
+                return self._sameDir(self.bookRoot(index), self.audioRoot())
+            return True
         return False
+
+    @staticmethod
+    def _sameDir(a, b):
+        return (os.path.normpath(os.path.abspath(a or "")) ==
+                os.path.normpath(os.path.abspath(b or "")))
 
     def bookIsAudio(self, index):
         """True if the loan is an audiobook (or its file is an audio file)."""
@@ -186,9 +232,63 @@ class App():
             pass
         return result[2:]
 
+    def audiobookFolder(self, book):
+        """Folder for a new audiobook. In an audiobook library (Audiobookshelf)
+        <Author>/<Title> – the names Audiobookshelf reads the book from;
+        otherwise None (the default <title>-palmknihy in workdir)."""
+        if not self.audioLibrary():
+            return None
+        authors = [a.strip() for a in self.bookAuthors(book).split(",") if a.strip()]
+        title = safeName(book.get("title"))
+        base = (safeName(" & ".join(authors)) + "/") if authors else ""
+        root = self.audioRoot()
+        folder = base + title
+        n = 1
+        # never mix chapters into a folder that is already there (e.g. the
+        # same book bought elsewhere)
+        while os.path.exists(os.path.join(root, folder)):
+            n += 1
+            folder = "%s%s (Palmknihy%s)" % (base, title, "" if n == 2 else " %d" % (n - 1))
+        return folder
+
+    def moveAudiobook(self, index):
+        """Move an already downloaded audiobook to the current audiobook folder."""
+        book = self.books[index]
+        src = self.bookFile(index)
+        root = self.audioRoot()
+        folder = self.audiobookFolder(book) or book["neknihy"]["filename"]
+        dst = os.path.join(root, folder)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        # via a hidden name, so a watching library sees only the whole book
+        tmp = os.path.join(root, ".neknihy-move-%s" % book.get("palm_id"))
+        if os.path.exists(tmp):
+            rmtree(tmp)
+        move(src, tmp)
+        os.replace(tmp, dst)
+        old_parent = os.path.dirname(src)
+        if not self._sameDir(old_parent, self.bookRoot(index)):
+            try:
+                os.rmdir(old_parent)
+            except OSError:
+                pass
+        book["neknihy"]["filename"] = folder
+        book["neknihy"]["dir"] = root
+
     def downloadBook(self, index):
-        if not self.bookExpired(self.books[index]):
-            self.api.downloadBook(self.settings.workdir, self.books[index])
+        book = self.books[index]
+        if self.bookExpired(book):
+            return
+        if self.bookIsAudio(index):
+            nk = book.get("neknihy", {})
+            if nk.get("status") == "ok" and self.bookFileExists(index):
+                return self.moveAudiobook(index)
+            root = self.audioRoot()
+            os.makedirs(root, exist_ok=True)
+            self.api.downloadAudiobook(root, book, self.audiobookFolder(book),
+                                       staging=self.audioLibrary())
+            book["neknihy"]["dir"] = root
+            return
+        self.api.downloadBook(self.settings.workdir, book)
 
     def downloadBooks(self):
         if not self.settings.configured():

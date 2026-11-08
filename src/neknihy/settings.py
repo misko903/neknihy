@@ -72,6 +72,16 @@ class Settings():
         return self._set_attr("readerdir", value)
 
     @property
+    def audiodir(self):
+        """Folder for audiobooks (empty = workdir). A separate folder gets the
+        Audiobookshelf layout: <Author>/<Title>/<chapters>."""
+        return self._get_attr("audiodir")
+
+    @audiodir.setter
+    def audiodir(self, value):
+        return self._set_attr("audiodir", value)
+
+    @property
     def convert(self):
         return self._get_attr("convert")
 
@@ -118,6 +128,7 @@ class Settings():
         self.password = config.get("settings", "password", fallback="")
         self.workdir = config.get("settings", "workdir", fallback="")
         self.readerdir = config.get("settings", "readerdir", fallback="")
+        self.audiodir = config.get("settings", "audiodir", fallback="")
         self.convert = config.get("settings", "convert", fallback="0")
         self.convertor = config.get("settings", "convertor", fallback="ebook-convert")
         self.tsk_username = config.get("settings", "tsk_username", fallback="")
@@ -141,7 +152,8 @@ class Settings():
 
     def update(self, email=None, password=None, workdir=None,
                readerdir=None, convert=None, convertor=None,
-               tsk_username=None, tsk_password=None, tsk_library=None):
+               tsk_username=None, tsk_password=None, tsk_library=None,
+               audiodir=None):
         if email is not None:
             self.email = email
         if password is not None:
@@ -160,6 +172,8 @@ class Settings():
             self.tsk_password = tsk_password
         if tsk_library is not None:
             self.tsk_library = tsk_library
+        if audiodir is not None:
+            self.audiodir = audiodir
         self.save()
 
     def configured(self):

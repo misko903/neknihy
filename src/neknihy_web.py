@@ -16,7 +16,9 @@
 
 Settings entered in the UI are stored in NEKNIHY_CONFIG_DIR. On first start
 NEKNIHY_EMAIL / NEKNIHY_PASSWORD / NEKNIHY_WORKDIR / NEKNIHY_READERDIR /
-NEKNIHY_INTERVAL / NEKNIHY_AUTO_RETURN env vars are used as initial values,
+NEKNIHY_AUDIODIR / NEKNIHY_INTERVAL / NEKNIHY_AUTO_RETURN env vars are used
+as initial values (with no NEKNIHY_AUDIODIR, a mounted Audiobookshelf library
+folder /audiobooks is used for audiobooks),
 as are NEKNIHY_TSK_USERNAME / NEKNIHY_TSK_PASSWORD / NEKNIHY_TSK_LIBRARY for
 borrowing e-books in the library catalogue (katalog.tsk.sk).
 """
@@ -57,6 +59,9 @@ DEFAULT_LANG = i18n.normalize(env("NEKNIHY_LANG"))
 FALLBACK_LANG = "cs"  # the app's original language
 LANG_COOKIE = "neknihy_lang=%s; Path=/; Max-Age=31536000; SameSite=Lax"
 STATUSES = ("new", "pending", "ok", "expired")
+# Where the Audiobookshelf library is usually mounted in the container; used
+# as the audiobook folder on first start if it exists.
+AUDIOBOOKSHELF_DIRS = ("/audiobooks",)
 WAIT_STEP = int(env("NEKNIHY_WAIT_STEP", "20"))  # s between checks after a loan
 WAIT_MAX = int(env("NEKNIHY_WAIT_MAX", "1800"))  # s to wait for a new loan
 PAGE_REFRESH = 10  # s, auto-reload of the loans page while something is going on
@@ -69,6 +74,18 @@ class MemoryLog(logging.Handler):
 
     def emit(self, record):
         self.lines.append(self.format(record))
+
+
+def default_audiodir():
+    """NEKNIHY_AUDIODIR, else a mounted Audiobookshelf library folder, else ""."""
+    value = env("NEKNIHY_AUDIODIR")
+    if value:
+        return value
+    for d in AUDIOBOOKSHELF_DIRS:
+        if os.path.isdir(d):
+            log.info("Audiobookshelf folder %s found, audiobooks go there", d)
+            return d
+    return ""
 
 
 class Service:
@@ -123,6 +140,11 @@ class Service:
             tsk_library=(s.tsk_library if s.tsk_library not in ("", "vkmr")
                          else env("NEKNIHY_TSK_LIBRARY", "vkmr")),
         )
+        # only once, so clearing the folder in the web UI sticks
+        if not self.web.get("audiodir_seeded"):
+            s.update(audiodir=s.audiodir or default_audiodir())
+            self.web["audiodir_seeded"] = True
+            self._save_web()
         try:
             os.chmod(CONF_FILE, 0o600)
         except OSError:
@@ -130,7 +152,7 @@ class Service:
 
     def _ensure_dirs(self):
         s = self.app.settings
-        for d in (s.workdir, s.readerdir):
+        for d in (s.workdir, s.readerdir, s.audiodir):
             if d:
                 try:
                     os.makedirs(d, exist_ok=True)
@@ -156,6 +178,7 @@ class Service:
                 tsk_username=form.get("tsk_username", "").strip(),
                 tsk_password=tsk_password if tsk_password else s.tsk_password,
                 tsk_library=form.get("tsk_library", "").strip().lower() or "vkmr",
+                audiodir=form.get("audiodir", "").strip(),
             )
             try:
                 interval = max(0, int(form.get("interval_h", "6") or 0) * 3600)
@@ -961,6 +984,8 @@ def render_settings(svc, t, lang_choice="auto"):
 <div class='chk'><input type='checkbox' name='ingest' id='ig'%s>
 <label for='ig' style='margin:0'>%s</label></div>
 <label>%s</label>
+<input type='text' name='audiodir' value='%s' placeholder='%s'>
+<label>%s</label>
 <input type='number' min='0' name='interval_h' value='%d'>
 <div class='chk'><input type='checkbox' name='auto_return' id='ar'%s>
 <label for='ar' style='margin:0'>%s</label></div>
@@ -978,6 +1003,7 @@ def render_settings(svc, t, lang_choice="auto"):
         esc(t("set.workdir")), esc(s.workdir),
         esc(t("set.readerdir")), esc(s.readerdir),
         " checked" if svc.web.get("ingest") else "", esc(t("set.ingest")),
+        esc(t("set.audiodir")), esc(s.audiodir), esc(s.workdir),
         esc(t("set.interval")), svc.web["interval"] // 3600,
         " checked" if svc.web["auto_return"] else "", esc(t("set.auto_return")),
         " checked" if s.convert == "1" else "", esc(t("set.convert")),

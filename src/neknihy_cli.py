@@ -57,6 +57,7 @@ def build_app(args):
     s.password = env("NEKNIHY_PASSWORD")
     s.workdir = args.workdir or env("NEKNIHY_WORKDIR", "/books")
     s.readerdir = args.readerdir or env("NEKNIHY_READERDIR")
+    s.audiodir = env("NEKNIHY_AUDIODIR")
     s.convert = env("NEKNIHY_CONVERT", "0")
     s.convertor = env("NEKNIHY_CONVERTOR", "ebook-convert")
     s.tsk_username = env("NEKNIHY_TSK_USERNAME")
@@ -69,6 +70,8 @@ def build_app(args):
     os.makedirs(s.workdir, exist_ok=True)
     if s.readerdir:
         os.makedirs(s.readerdir, exist_ok=True)
+    if s.audiodir:
+        os.makedirs(s.audiodir, exist_ok=True)
     if s.convert == "1" and shutil.which(s.convertor) is None:
         log.warning("ebook-convert not found (%s), mobi conversion disabled", s.convertor)
         s.convert = "0"

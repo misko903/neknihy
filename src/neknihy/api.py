@@ -211,14 +211,23 @@ class API():
                     f.write(chunk)
         os.replace(part, path)
 
-    def downloadAudiobook(self, workdir, book):
-        """Download every chapter (MP3) into workdir/<title>-palmknihy/.
+    def downloadAudiobook(self, workdir, book, folder=None, staging=False):
+        """Download every chapter (MP3) into workdir/<folder>/
+        (default folder: <title>-palmknihy).
 
         Chapters already on disk are skipped, so an interrupted download
-        continues where it stopped.
+        continues where it stopped. With staging the chapters go to a hidden
+        workdir/.neknihy-<title>/ first and the finished folder is moved in
+        place at the end, so a watching library (Audiobookshelf) never sees
+        a half-downloaded book.
         """
-        folder = slugify(book.get("title")) + "-palmknihy"
-        path = os.path.join(workdir, folder)
+        folder = folder or slugify(book.get("title")) + "-palmknihy"
+        final = os.path.join(workdir, folder)
+        if staging:
+            path = os.path.join(workdir, ".neknihy-" + slugify(book.get("title")) +
+                                "-" + str(book.get("palm_id")))
+        else:
+            path = final
         chapters = self.getAudiobookChapters(book)
         if not chapters:
             book["neknihy"] = {"status": "pending", "filename": ""}
@@ -240,6 +249,9 @@ class API():
                 continue
             log.info("Downloading %s: chapter %d/%d", book.get("title"), n, len(chapters))
             self._fetch(url, fullpath)
+        if path != final:
+            os.makedirs(os.path.dirname(final), exist_ok=True)
+            os.replace(path, final)
         book["neknihy"] = {"status": "ok", "filename": folder}
 
     def downloadBook(self, workdir, book):

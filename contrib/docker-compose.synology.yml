@@ -39,6 +39,9 @@ services:
       # ktorý ich naimportuje do knižnice:
       NEKNIHY_READERDIR: "/reader"
       NEKNIHY_INGEST: "1"
+      # Audioknihy idú do knižnice Audiobookshelf ako Autor/Názov/kapitoly
+      # (ABS priečinok sleduje a knihu pridá sám, keď je celá stiahnutá):
+      NEKNIHY_AUDIODIR: "/audiobooks"
       # Voliteľné počiatočné hodnoty (dajú sa nastaviť aj vo webe):
       # NEKNIHY_EMAIL: "ty@example.com"
       # NEKNIHY_PASSWORD: "heslo-palmknihy"
@@ -50,6 +53,7 @@ services:
       - /volume1/docker/neknihy/config:/config   # nastavenia
       - /volume1/docker/neknihy/books:/books     # stiahnuté knihy
       - /volume1/docker/autocalibreweb/ingest:/reader   # ingest priečinok CW NG
+      - /volume1/docker/audiobookshelf/audiobooks:/audiobooks   # ← knižnica Audiobookshelf
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8478/health')"]
       interval: 60s
