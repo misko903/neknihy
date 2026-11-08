@@ -30,9 +30,14 @@ services:
       # NEKNIHY_TSK_PASSWORD: "heslo-katalog"
       # NEKNIHY_TSK_LIBRARY: "vkmr"
       # NEKNIHY_READERDIR: "/reader"
+      # Audioknihy do knižnice Audiobookshelf (Autor/Názov/kapitoly);
+      # stačí pripojiť priečinok nižšie, /audiobooks sa použije sám:
+      # NEKNIHY_AUDIODIR: "/audiobooks"
     volumes:
       - /volume1/docker/neknihy/config:/config   # nastavenia
       - /volume1/docker/neknihy/books:/books     # stiahnuté knihy
       # Synchronizácia priamo do ingest priečinka Calibre-Web
       # (vo webe potom nastav "Složka pro synchronizaci" na /reader):
       # - /volume1/docker/calibre-web/ingest:/reader
+      # Priečinok knižnice Audiobookshelf (ABS ho sleduje a audioknihy pridá sám):
+      # - /volume1/docker/audiobookshelf/audiobooks:/audiobooks

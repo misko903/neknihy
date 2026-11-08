@@ -71,6 +71,7 @@ podobě, stejně jako u desktopové verze). Webové rozhraní chraňte heslem
 | `NEKNIHY_PASSWORD` | – | počáteční heslo Palmknihy |
 | `NEKNIHY_WORKDIR` | `/books` | složka pro stažené knihy |
 | `NEKNIHY_READERDIR` | – | volitelná složka pro synchronizaci |
+| `NEKNIHY_AUDIODIR` | – | složka pro audioknihy, např. knihovna Audiobookshelf; audioknihy se ukládají jako `Autor/Název/` (kapitoly MP3) a do složky se přesunou až celé stažené. Pokud není nastavena a v kontejneru existuje `/audiobooks`, použije se ta. Prázdné = složka pro knihy |
 | `NEKNIHY_INTERVAL` | `21600` | počáteční interval v sekundách, `0` = vypnuto |
 | `NEKNIHY_AUTO_RETURN` | `1` | mazat soubory prošlých výpůjček |
 | `NEKNIHY_INGEST` | `0` | `1` = složka pro synchronizaci je ingest složka Calibre-Web Automated / NextGen; každá kniha se do ní zkopíruje jen jednou |

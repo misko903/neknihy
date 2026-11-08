@@ -8,7 +8,7 @@ from unittest import mock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from neknihy.api import API, slugify  # noqa: E402
-from neknihy.app import App, isAudioFile  # noqa: E402
+from neknihy.app import App, isAudioFile, safeName  # noqa: E402
 import neknihy_cli  # noqa: E402
 
 
@@ -198,6 +198,87 @@ class AppAudiobooks(unittest.TestCase):
         self.app.returnBooks()
         self.assertFalse(os.path.exists(folder))
         self.assertEqual(self.app.books, [])
+
+
+class AudiobookFolder(unittest.TestCase):
+    """Audiobooks in their own folder (Audiobookshelf library)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.work = os.path.join(self.tmp.name, "books")
+        self.abs = os.path.join(self.tmp.name, "audiobooks")
+        os.mkdir(self.work)
+        self.app = App(config=os.path.join(self.tmp.name, "neknihy.ini"))
+        s = self.app.settings
+        s.workdir, s.audiodir = self.work, self.abs
+        self.app.api._login = {"token": "T"}
+        self.get = PalmknihyAudiobooks._chapter_get(None)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def book(self, **kw):
+        return dict(AUDIO_RENT, persons=[
+            {"type": "author", "author": {"firstname": "Agatha", "surname": "Christie"}}],
+            neknihy={"status": "new", "filename": ""}, **kw)
+
+    def test_safe_name(self):
+        self.assertEqual(safeName('Vražda: "v" Orient/expresu?'), "Vražda v Orient expresu")
+        self.assertEqual(safeName(" ... "), "Audiokniha")
+
+    def test_download_author_title(self):
+        self.app.books = [self.book()]
+        with mock.patch("neknihy.api.requests.get", side_effect=self.get):
+            self.app.downloadBook(0)
+        nk = self.app.books[0]["neknihy"]
+        self.assertEqual(nk["status"], "ok")
+        self.assertEqual(nk["filename"], "Agatha Christie/Třináct záhad")
+        self.assertEqual(nk["dir"], self.abs)
+        folder = os.path.join(self.abs, "Agatha Christie", "Třináct záhad")
+        self.assertEqual(sorted(os.listdir(folder)), ["01-prvni.mp3", "02-druha.mp3"])
+        # no staging folder left, nothing in the books folder
+        self.assertEqual(os.listdir(self.abs), ["Agatha Christie"])
+        self.assertEqual(os.listdir(self.work), [])
+        self.assertTrue(self.app.bookDownloaded(0))
+
+    def test_existing_folder_is_not_reused(self):
+        os.makedirs(os.path.join(self.abs, "Agatha Christie", "Třináct záhad"))
+        self.app.books = [self.book()]
+        with mock.patch("neknihy.api.requests.get", side_effect=self.get):
+            self.app.downloadBook(0)
+        self.assertEqual(self.app.books[0]["neknihy"]["filename"],
+                         "Agatha Christie/Třináct záhad (Palmknihy)")
+
+    def test_old_download_is_moved(self):
+        old = os.path.join(self.work, "trinact-zahad-palmknihy")
+        os.makedirs(old)
+        open(os.path.join(old, "01-prvni.mp3"), "w").close()
+        self.app.books = [self.book()]
+        self.app.books[0]["neknihy"] = {"status": "ok", "filename": "trinact-zahad-palmknihy"}
+        self.assertFalse(self.app.bookDownloaded(0))
+        get = mock.Mock()
+        with mock.patch("neknihy.api.requests.get", get):
+            self.app.downloadBook(0)
+        get.assert_not_called()
+        self.assertFalse(os.path.exists(old))
+        self.assertTrue(os.path.exists(os.path.join(
+            self.abs, "Agatha Christie", "Třináct záhad", "01-prvni.mp3")))
+        self.assertTrue(self.app.bookDownloaded(0))
+
+    def test_return_removes_book_and_empty_author(self):
+        self.app.books = [self.book()]
+        with mock.patch("neknihy.api.requests.get", side_effect=self.get):
+            self.app.downloadBook(0)
+        self.app.books[0]["neknihy"]["status"] = "expired"
+        self.app.returnBooks()
+        self.assertEqual(os.listdir(self.abs), [])
+
+    def test_same_folder_as_workdir_keeps_old_layout(self):
+        self.app.settings.audiodir = self.work
+        self.app.books = [self.book()]
+        with mock.patch("neknihy.api.requests.get", side_effect=self.get):
+            self.app.downloadBook(0)
+        self.assertEqual(self.app.books[0]["neknihy"]["filename"], "trinact-zahad-palmknihy")
 
 
 class CatalogueIdsTest(unittest.TestCase):

@@ -35,6 +35,7 @@
   "set.password_keep": "(leer lassen, um es beizubehalten)",
   "set.workdir": "Ordner für Bücher (im Container)",
   "set.readerdir": "Ordner für die Synchronisation (E-Reader, Calibre-Web-Ingest; leer = aus)",
+  "set.audiodir": "Ordner für Hörbücher (z. B. Audiobookshelf-Bibliothek – gespeichert als Autor/Titel; leer = Bücherordner)",
   "set.interval": "Intervall für den automatischen Lauf (Stunden, 0 = aus)",
   "set.auto_return": "Abgelaufene Ausleihen automatisch löschen",
   "set.convert": "In .mobi umwandeln (erfordert Calibre)",
