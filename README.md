@@ -1,7 +1,25 @@
 # Neknihy NextGen
-Neknihy NextGen is an application for managing rented books.
-It works with some libraries in the Czech republic
-so the rest is in Czech language only.
+
+Neknihy NextGen manages e-book and audiobook loans from Czech and Slovak
+libraries that lend through Palmknihy. It downloads borrowed books, copies
+them to your e-reader (or a Calibre-Web ingest folder), files audiobooks
+for Audiobookshelf and returns loans with one click. It runs as a desktop
+app or headless in Docker with a web interface in Czech, Slovak, English
+and German. Most of the documentation below is in Czech.
+
+Neknihy NextGen spravuje výpůjčky e-knih a audioknih z knihoven, které
+půjčují přes Palmknihy:
+
+- stáhne vypůjčené e-knihy i audioknihy a synchronizuje je se čtečkou
+  nebo s ingest složkou Calibre-Web,
+- audioknihy ukládá jako `Autor/Název`, takže se hodí pro Audiobookshelf,
+- vyhledá a vypůjčí knihy přímo z katalogu knihovny (katalog.tsk.sk),
+- výpůjčky vrací jedním tlačítkem a prošlé knihy smaže i ze čtečky,
+- běží jako desktopová aplikace nebo v Dockeru (např. na NAS)
+  s webovým rozhraním a automatickým obnovováním v nastaveném intervalu.
+
+Projekt vychází z původních [Neknihy](https://github.com/thalman/neknihy)
+od Tomáše Halmana.
 
 ## Motivace
 
