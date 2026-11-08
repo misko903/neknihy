@@ -414,6 +414,7 @@ _ICON_PATHS = {
     "sun": "<circle cx='12' cy='12' r='4'/><path d='M12 2v2'/><path d='M12 20v2'/>"
            "<path d='m4.9 4.9 1.4 1.4'/><path d='m17.7 17.7 1.4 1.4'/><path d='M2 12h2'/>"
            "<path d='M20 12h2'/><path d='m4.9 19.1 1.4-1.4'/><path d='m17.7 6.3 1.4-1.4'/>",
+    "auto": "<circle cx='12' cy='12' r='9'/><path d='M12 3a9 9 0 0 1 0 18z' fill='currentColor'/>",
     "moon": "<path d='M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z'/>",
     "expired": "<circle cx='12' cy='12' r='9'/><path d='m9 9 6 6'/><path d='m15 9-6 6'/>",
     "info": "<circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><path d='M12 8h0'/>",
@@ -703,18 +704,12 @@ background:none;
 color:var(--mut)}
 .theme:hover{
 color:var(--fg)}
-.theme .sun{
+.theme .ic{
 display:none}
-@media (prefers-color-scheme:dark){
-:root:not([data-theme=light]) .theme .sun{
+:root:not([data-theme]) .theme .t-auto,
+:root[data-theme=light] .theme .t-light,
+:root[data-theme=dark] .theme .t-dark{
 display:inline}
-:root:not([data-theme=light]) .theme .moon{
-display:none}
-}
-:root[data-theme=dark] .theme .sun{
-display:inline}
-:root[data-theme=dark] .theme .moon{
-display:none}
 .seg{
 display:inline-flex;
 border:1px solid var(--line);
@@ -774,26 +769,38 @@ def page(t, title, body, path="/", refresh=None):
             "<link rel='apple-touch-icon' href='/apple-touch-icon.png'>"
             "<style>%s</style><script>%s</script></head><body>"
             "<header><h1><img src='/icon.png' alt=''>Neknihy</h1><nav>%s</nav>"
-            "<button type='button' class='theme' onclick='nkTheme()' title='%s' "
-            "aria-label='%s'>%s%s</button>"
+            "<button type='button' class='theme' onclick='nkTheme()' %s>%s%s%s</button>"
             "</header><main>%s</main></body></html>"
             % (t.lang, meta, esc(title), CSS, THEME_JS, "".join(
                 "<a href='%s'%s>%s%s</a>" % (
                     href, " class='on' aria-current='page'" if href == path else "",
                     icon(ic), esc(t(key)))
-                for href, ic, key in TABS), esc(t("theme.toggle")), esc(t("theme.toggle")),
-               icon("moon", "ic moon"), icon("sun", "ic sun"), body))
+                for href, ic, key in TABS), " ".join(
+                   "data-%s='%s: %s'" % (m, esc(t("theme.toggle")), esc(t("theme." + m)))
+                   for m in THEMES),
+               icon("auto", "ic t-auto"), icon("sun", "ic t-light"), icon("moon", "ic t-dark"),
+               body))
+
+
+# Theme cycle on the header button; "auto" follows the system setting.
+THEMES = ("auto", "light", "dark")
 
 
 # Applied in <head> so the saved theme is set before the first paint; the
-# choice is per browser (localStorage), the system setting is the default.
+# choice is per browser (localStorage), "auto" (no data-theme) is the default.
+# The button shows the current mode (CSS) and names it in its title.
 THEME_JS = (
     "(function(){try{var v=localStorage.getItem('theme');"
-    "if(v)document.documentElement.setAttribute('data-theme',v)}catch(e){}})();"
-    "function nkTheme(){var r=document.documentElement,c=r.getAttribute('data-theme')"
-    "||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'),"
-    "n=c=='dark'?'light':'dark';r.setAttribute('data-theme',n);"
-    "try{localStorage.setItem('theme',n)}catch(e){}}")
+    "if(v=='light'||v=='dark')document.documentElement.setAttribute('data-theme',v)}"
+    "catch(e){}})();"
+    "function nkLabel(){var b=document.querySelector('.theme'),"
+    "m=document.documentElement.getAttribute('data-theme')||'auto';"
+    "b.title=b.getAttribute('data-'+m);b.setAttribute('aria-label',b.title)}"
+    "document.addEventListener('DOMContentLoaded',nkLabel);"
+    "function nkTheme(){var r=document.documentElement,c=r.getAttribute('data-theme')||'auto',"
+    "n={auto:'light',light:'dark',dark:'auto'}[c];"
+    "try{n=='auto'?localStorage.removeItem('theme'):localStorage.setItem('theme',n)}catch(e){}"
+    "n=='auto'?r.removeAttribute('data-theme'):r.setAttribute('data-theme',n);nkLabel()}")
 
 
 # Navigation tabs: (path, icon, label key)
@@ -1136,6 +1143,18 @@ def language_select(t, choice):
         for code, name in opts)
 
 
+def library_select(choice):
+    """<select> of the catalogues on katalog.tsk.sk; keeps an unknown code."""
+    opts = list(katalog.LIBRARIES)
+    choice = choice or "vkmr"
+    if choice not in dict(opts):
+        opts.append((choice, choice))
+    return "<select name='tsk_library' id='tsk_library'>%s</select>" % "".join(
+        "<option value='%s'%s>%s</option>" % (
+            esc(code), " selected" if code == choice else "", esc(name))
+        for code, name in opts)
+
+
 def render_settings(svc, t, lang_choice="auto"):
     s = svc.app.settings
     body = """<div class='card'><form method='post' action='/settings'>
@@ -1159,7 +1178,7 @@ def render_settings(svc, t, lang_choice="auto"):
 <h2 style='margin-top:20px'>%s%s</h2>
 <label>%s</label><input type='text' name='tsk_username' value='%s' autocomplete='off'>
 <label>%s %s</label><input type='password' name='tsk_password' autocomplete='new-password'>
-<label>%s</label><input type='text' name='tsk_library' value='%s'>
+<label for='tsk_library'>%s</label>%s
 <p><button class='primary'>%s%s</button></p></form></div>""" % (
         icon("lang"), esc(t("nav.language")), language_select(t, lang_choice),
         esc(t("set.email")), esc(s.email),
@@ -1175,7 +1194,7 @@ def render_settings(svc, t, lang_choice="auto"):
         icon("borrow"), esc(t("set.tsk")),
         esc(t("set.tsk_username")), esc(s.tsk_username),
         esc(t("set.password")), esc(t("set.password_keep")) if s.tsk_password else "",
-        esc(t("set.tsk_library")), esc(s.tsk_library),
+        esc(t("set.tsk_library")), library_select(s.tsk_library),
         icon("ok"), esc(t("set.save")))
     return page(t, "%s – Neknihy" % t("title.settings"), body, "/settings")
 
