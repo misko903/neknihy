@@ -88,6 +88,9 @@ class API():
                                  data=json.dumps(data),
                                  headers=headers)
         self.responseDebug(response)
+        if response.status_code >= 500:
+            raise RuntimeError("Server Palmknihy (%s) neodpovídá (HTTP %d), zkuste to později" %
+                               (self._url, response.status_code))
         if response.status_code >= 300:
             raise RuntimeError("Nepodařilo se přihlásit, zkontrolujte jméno a heslo\n(%s)" %
                                response.text)
