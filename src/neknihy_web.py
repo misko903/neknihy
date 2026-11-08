@@ -420,6 +420,15 @@ _ICON_PATHS = {
     "info": "<circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><path d='M12 8h0'/>",
     "warn": "<path d='M12 3 2 20h20z'/><path d='M12 10v4'/><path d='M12 17h0'/>",
     "log": "<path d='M4 6h16'/><path d='M4 12h16'/><path d='M4 18h10'/>",
+    "v-compact": "<path d='M8 6h13'/><path d='M8 12h13'/><path d='M8 18h13'/>"
+                 "<path d='M3 6h0'/><path d='M3 12h0'/><path d='M3 18h0'/>",
+    "v-details": "<rect x='3' y='4' width='6' height='6' rx='1'/>"
+                 "<rect x='3' y='14' width='6' height='6' rx='1'/><path d='M13 6h8'/>"
+                 "<path d='M13 9h5'/><path d='M13 16h8'/><path d='M13 19h5'/>",
+    "v-grid": "<rect x='3' y='3' width='7' height='7' rx='1'/>"
+              "<rect x='14' y='3' width='7' height='7' rx='1'/>"
+              "<rect x='3' y='14' width='7' height='7' rx='1'/>"
+              "<rect x='14' y='14' width='7' height='7' rx='1'/>",
     "empty": "<path d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z'/>"
              "<path d='M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5'/>",
 }
@@ -702,7 +711,7 @@ white-space:nowrap}
 .tfilter{
 align-items:center;
 margin-bottom:8px}
-.tfilter input{
+.tfilter input[type=search]{
 flex:1;
 min-width:160px}
 .only-sm{
@@ -756,6 +765,87 @@ color:#fff}
 .seg input:focus-visible+label{
 outline:2px solid var(--acc);
 outline-offset:-2px}
+.tfilter .seg{
+align-self:stretch}
+table[data-view=compact] .cover,
+table[data-view=compact] .c-cover,
+table[data-view=compact] .pub{
+display:none}
+table[data-view=compact] td{
+padding:4px 6px}
+table[data-view=compact] .kind .ic{
+width:18px;
+height:18px}
+table[data-view=grid],
+table[data-view=grid] thead{
+display:block}
+table[data-view=grid] thead tr{
+display:flex;
+flex-wrap:wrap;
+gap:4px 16px;
+margin-bottom:10px}
+table[data-view=grid] th{
+border:0;
+padding:0}
+table[data-view=grid] th:not(.sort){
+display:none}
+table[data-view=grid] tbody{
+display:grid;
+grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
+gap:12px}
+table[data-view=grid] tbody tr{
+display:flex;
+flex-wrap:wrap;
+align-items:center;
+align-content:flex-start;
+gap:6px 10px;
+border:1px solid var(--line);
+border-radius:10px;
+padding:10px}
+table[data-view=grid] tbody tr[hidden]{
+display:none}
+table[data-view=grid] td{
+display:block;
+border:0;
+padding:0}
+table[data-view=grid] td.c-cover,
+table[data-view=grid] td.c-title,
+table[data-view=grid] td.c-auth{
+display:block;
+width:100%}
+table[data-view=grid] td.c-cover{
+order:-3}
+table[data-view=grid] td.c-title{
+order:-2}
+table[data-view=grid] td.c-auth{
+order:-1;
+color:var(--mut);
+font-size:13px}
+table[data-view=grid] td.c-cover:empty{
+display:none}
+table[data-view=grid] .bk{
+flex-direction:column}
+table[data-view=grid] .cover{
+width:100%;
+aspect-ratio:2/3;
+object-fit:cover;
+border-radius:6px}
+table[data-view=grid] td.c-title{
+font-weight:500}
+table[data-view=grid] td.c-title .mut{
+font-weight:400}
+table[data-view=grid] .only-sm{
+display:block}
+#loans[data-view=grid] td.c-auth,
+table[data-view=grid] td.c-file{
+display:none}
+table[data-view=grid] td.c-due{
+display:block;
+width:100%;
+color:var(--mut);
+font-size:13px}
+table[data-view=grid] td.c-act{
+margin-left:auto}
 @media (max-width:600px){
 header{
 flex-wrap:wrap;
@@ -847,13 +937,26 @@ def kind_cell(t, audio):
                icon("audio" if audio else "ebook")))
 
 
+# Ways to show a table (see the table[data-view] CSS and TABLE_JS)
+VIEWS = ("compact", "details", "grid")
+
+
 def filter_box(t, table_id):
-    """Text box that hides the rows of a table that do not match (see TABLE_JS)."""
+    """Text box that hides the rows of a table that do not match, and the
+    choice of view (see TABLE_JS)."""
+    views = "".join(
+        "<input type='radio' name='view-%s' value='%s' id='view-%s-%s'%s>"
+        "<label for='view-%s-%s' title='%s' aria-label='%s'>%s</label>" % (
+            table_id, v, table_id, v, " checked" if v == "details" else "", table_id, v,
+            esc(t("view." + v)), esc(t("view." + v)), icon("v-" + v)) for v in VIEWS)
     return ("<div class='actions tfilter'><input type='search' data-for='%s' "
             "placeholder='%s' aria-label='%s' autocomplete='off'>"
-            "<span class='mut' data-count='%s' hidden></span></div>" % (
+            "<span class='mut' data-count='%s' hidden></span>"
+            "<span class='seg' role='radiogroup' aria-label='%s' data-view-for='%s'>%s</span>"
+            "</div>" % (
                 table_id, esc(t("filter.placeholder")), esc(t("filter.placeholder")),
-                esc(t("filter.count", n="{n}", total="{total}"))))
+                esc(t("filter.count", n="{n}", total="{total}")), esc(t("view.label")),
+                table_id, views))
 
 
 def rating_attrs(t):
@@ -910,6 +1013,12 @@ cnt.hidden=!words.length;cnt.textContent=cnt.getAttribute('data-count')
 try{sessionStorage.setItem('neknihy.filter.'+tb.id,box.value);}catch(e){}}
 document.querySelectorAll('table.sortable').forEach(function(tb){
 Array.prototype.forEach.call(tb.tBodies[0].rows,function(r,i){r.setAttribute('data-i',i);});
+var vw=document.querySelector('[data-view-for="'+tb.id+'"]');
+if(vw){var setView=function(v){var r=vw.querySelector('input[value="'+v+'"]');
+if(!r)return;r.checked=true;tb.setAttribute('data-view',v);};
+try{setView(localStorage.getItem('neknihy.view.'+tb.id));}catch(e){}
+vw.addEventListener('change',function(e){setView(e.target.value);
+try{localStorage.setItem('neknihy.view.'+tb.id,e.target.value);}catch(x){}});}
 var box=document.querySelector('input[data-for="'+tb.id+'"]');
 if(box){try{box.value=sessionStorage.getItem('neknihy.filter.'+tb.id)||'';}catch(e){}
 box.addEventListener('input',function(){filter(tb,box);});if(box.value)filter(tb,box);}
@@ -1022,16 +1131,17 @@ def render_search(svc, t, query, page_no, kind="ebook"):
                  if r["cover"] else "")
         authors = "; ".join(r["authors"])
         rows.append(
-            "<tr><td class='hide-sm'>%s</td><td data-v='%s'><a href='%s/detail/%d' "
-            "target='_blank' rel='noopener'>%s</a><div class='mut'>%s</div></td>%s"
-            "<td class='hide-sm' data-v='%s'>%s</td>%s<td>%s</td></tr>" % (
+            "<tr><td class='hide-sm c-cover'>%s</td><td class='c-title' data-v='%s'>"
+            "<a href='%s/detail/%d' target='_blank' rel='noopener'>%s</a>"
+            "<div class='mut pub'>%s</div></td>%s"
+            "<td class='hide-sm c-auth' data-v='%s'>%s</td>%s<td class='c-act'>%s</td></tr>" % (
                 cover, esc(r["title"]), lib_url, r["work_id"],
                 esc(r["title"] or r["work_id"]), esc(r["publish_info"]),
                 kind_cell(t, r.get("audiobook")),
                 esc(authors), esc(authors), rating_cell(svc, t, r["palm_id"]), action))
     if rows:
-        table = ("<p class='mut'>%s</p>%s<table class='sortable' id='search' %s><thead><tr>"
-                 "<th class='hide-sm'></th>%s%s%s%s<th></th></tr></thead><tbody>%s</tbody>"
+        table = ("<p class='mut'>%s</p>%s<table class='sortable' id='search' data-view='details' %s>"
+                 "<thead><tr><th class='hide-sm c-cover'></th>%s%s%s%s<th></th></tr></thead><tbody>%s</tbody>"
                  "</table>%s" % (
                      esc(t("search.results_" + res["kind"], n=res["total"])),
                      filter_box(t, "search"), rating_attrs(t),
@@ -1067,7 +1177,7 @@ def render_index(svc, t):
         title = b.get("title") or b.get("palm_id") or ""
         authors = app.bookAuthors(b)
         filename = b.get("neknihy", {}).get("filename", "")
-        delete = ("<td><form method='post' action='/delete' class='del' "
+        delete = ("<td class='c-act'><form method='post' action='/delete' class='del' "
                   "data-confirm='%s'><input type='hidden' name='palm_id' value='%s'>"
                   "<input type='hidden' name='audio' value='%d'>"
                   "<button title='%s' aria-label='%s'>%s</button></form></td>" % (
@@ -1075,10 +1185,11 @@ def render_index(svc, t):
                       isAudiobook(b), esc(t("btn.delete")), esc(t("btn.delete")),
                       icon("delete")))
         rows.append(
-            "<tr><td data-v='%s'><div class='bk'>%s<div>%s<div class='mut only-sm'>%s</div>"
-            "</div></div></td>%s<td class='hide-sm' data-v='%s'>%s</td>%s"
-            "<td class='hide-sm mut' data-v='%s'>%s</td>"
-            "<td class='hide-sm' data-v='%s'>%s</td>"
+            "<tr><td class='c-title' data-v='%s'><div class='bk'>%s<div>%s"
+            "<div class='mut only-sm'>%s</div></div></div></td>%s"
+            "<td class='hide-sm c-auth' data-v='%s'>%s</td>%s"
+            "<td class='hide-sm mut c-file' data-v='%s'>%s</td>"
+            "<td class='hide-sm c-due' data-v='%s'>%s</td>"
             "<td data-v='%d'><span class='st st-%s'>%s%s</span></td>%s</tr>" % (
                 esc(title), cover, esc(title), esc(authors), kind_cell(t, isAudiobook(b)),
                 esc(authors), esc(authors), rating_cell(svc, t, webId(b)),
@@ -1086,7 +1197,7 @@ def render_index(svc, t):
                 esc(b.get("end_time") or ""), fmt_date(t, b.get("end_time", "")),
                 STATUSES.index(st) if st in STATUSES else len(STATUSES), esc(st),
                 icon(st) if st in STATUSES else "", esc(label), delete))
-    table = ("%s<table class='sortable' id='loans' %s><thead><tr>%s%s%s%s%s%s%s<th></th></tr>"
+    table = ("%s<table class='sortable' id='loans' data-view='details' %s><thead><tr>%s%s%s%s%s%s%s<th></th></tr>"
              "</thead><tbody>%s</tbody></table>%s%s" % (
                  filter_box(t, "loans"), rating_attrs(t), sort_th(t("th.book")),
                  sort_th(t("th.type")), sort_th(t("th.author"), cls="hide-sm"),
