@@ -18,6 +18,8 @@ from urllib.parse import urlparse
 
 import requests
 
+from neknihy import dawinci
+
 log = logging.getLogger("neknihy")
 
 BASE_URL = "https://katalog.tsk.sk"
@@ -39,6 +41,20 @@ LIBRARIES = [
     ("vkmr", "VKMR v Trenčíne"),
     ("muzeumpb", "VM v Považskej Bystrici"),
 ]
+# other catalogue systems: search only for now (see dawinci.py)
+LIBRARIES += [(code, name) for code, (name, _url) in dawinci.LIBRARIES.items()]
+
+
+def can_borrow(library):
+    """Can Neknihy borrow from this library's catalogue (katalog.tsk.sk only)?"""
+    return not dawinci.is_library(library or "vkmr")
+
+
+def detail_url(library, result):
+    """Link to a search result in the library's catalogue."""
+    if result.get("detail_url"):
+        return result["detail_url"]
+    return "%s/library/%s/detail/%s" % (BASE_URL, library or "vkmr", result["work_id"])
 
 
 class KatalogError(RuntimeError):
@@ -451,6 +467,8 @@ def search(query, library="vkmr", ebooks_only=True, page=1, page_size=PAGE_SIZE,
     """
     library = library or "vkmr"
     kind = kind if kind in KINDS else "ebook"
+    if dawinci.is_library(library):
+        return dawinci.search(query, library, kind=kind, page=page, timeout=timeout)
     if not ebooks_only:
         areas = [AREA_ALL]
     elif kind == "all" and library in EBOOK_AREAS and library in AUDIOBOOK_AREAS:

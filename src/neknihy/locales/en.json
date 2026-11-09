@@ -52,6 +52,7 @@
   "borrow.title": "Find and borrow an e-book or audiobook (library catalogue)",
   "borrow.label": "Or paste a link to the book in katalog.tsk.sk or its work ID",
   "borrow.not_configured": "To borrow from the library catalogue, fill in its login in the {settings}.",
+  "borrow.unsupported": "Neknihy cannot borrow from this library's catalogue yet, only search it. Borrow the book in the catalogue (the title links there) and Neknihy will then download it.",
   "btn.borrow": "Borrow",
   "set.tsk": "Library catalogue",
   "set.tsk_username": "User name",

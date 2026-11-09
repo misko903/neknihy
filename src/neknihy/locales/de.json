@@ -52,6 +52,7 @@
   "borrow.title": "E-Book oder Hörbuch suchen und ausleihen (Bibliothekskatalog)",
   "borrow.label": "Oder Link zum Buch in katalog.tsk.sk bzw. seine Werk-ID einfügen",
   "borrow.not_configured": "Um aus dem Bibliothekskatalog auszuleihen, die Katalog-Anmeldung in den {settings} ausfüllen.",
+  "borrow.unsupported": "Aus dem Katalog dieser Bibliothek kann Neknihy noch nicht ausleihen, nur darin suchen. Leihen Sie das Buch im Katalog aus (der Titel verlinkt dorthin), Neknihy lädt es dann herunter.",
   "btn.borrow": "Ausleihen",
   "set.tsk": "Bibliothekskatalog",
   "set.tsk_username": "Benutzername",

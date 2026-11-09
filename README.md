@@ -119,7 +119,7 @@ podobe, rovnako ako pri desktopovej verzii). Webové rozhranie chráňte heslom
 | `NEKNIHY_DEBUG` | `0` | výpis HTTP komunikácie |
 | `NEKNIHY_TSK_USERNAME` | – | počiatočné prihlásenie do katalógu knižnice (katalog.tsk.sk) |
 | `NEKNIHY_TSK_PASSWORD` | – | počiatočné heslo do katalógu knižnice |
-| `NEKNIHY_TSK_LIBRARY` | `vkmr` | kód knižnice z adresy katalógu (`katalog.tsk.sk/library/<kód>/`) |
+| `NEKNIHY_TSK_LIBRARY` | `vkmr` | kód knižnice z adresy katalógu (`katalog.tsk.sk/library/<kód>/`), alebo `mkb` pre Mestskú knižnicu v Bratislave |
 
 Hodnoty `NEKNIHY_EMAIL` … `NEKNIHY_AUTO_RETURN` a `NEKNIHY_TSK_*` slúžia len
 ako počiatočné, ďalej platí to, čo uložíte vo webovom rozhraní.
@@ -138,6 +138,15 @@ na knihu v katalógu alebo jej ID diela (`workId`).
 Z príkazového riadka:
 `python3 src/neknihy_cli.py --search poirot` (vypíše `workId` nájdených e-kníh),
 `NEKNIHY_TSK_USERNAME=... NEKNIHY_TSK_PASSWORD=... NEKNIHY_EMAIL=... NEKNIHY_PASSWORD=... python3 src/neknihy_cli.py --borrow 1439847`
+
+### Mestská knižnica v Bratislave (iba hľadanie)
+
+V nastaveniach sa dá ako knižnica zvoliť aj Mestská knižnica v Bratislave
+(`NEKNIHY_TSK_LIBRARY=mkb`, katalóg opac.mestskakniznica.sk). Neknihy v jej
+katalógu hľadajú e-knihy a audioknihy z Palmknihy podľa názvu a autora, požičať
+si ich ale zatiaľ treba priamo v katalógu (názov knihy vo výsledkoch naň
+odkazuje). Vypožičanú knihu potom Neknihy stiahnu z Palmknihy ako obvykle.
+Hľadanie je pomalšie ako v katalog.tsk.sk (niekoľko sekúnd, 10 kníh na stranu).
 
 Webové rozhranie je v češtine, slovenčine, angličtine a nemčine. Jazyk sa
 vyberá podľa prehliadača a dá sa prepnúť v záhlaví stránky. Preklady sú

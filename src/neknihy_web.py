@@ -1034,7 +1034,10 @@ def header_search(t, query="", kind="ebook"):
 
 def header_menu(svc, t):
     """⋮ menu next to the search: borrowing by a catalogue link or workId."""
-    if svc is None or svc.app.settings.katalog_configured():
+    s = svc.app.settings if svc else None
+    if s is not None and not katalog.can_borrow(s.tsk_library):
+        inner = "<p class='mut'>%s</p>" % esc(t("borrow.unsupported"))
+    elif s is None or s.katalog_configured():
         inner = ("<form method='post' action='/borrow'><label for='work'>%s</label>"
                  "<div class='actions'><input type='text' name='work' id='work' required "
                  "style='flex:1;min-width:0' placeholder='https://katalog.tsk.sk/…?workId=1439847'>"
@@ -1287,9 +1290,10 @@ def render_search(svc, t, query, page_no, kind="ebook"):
     # loan's palm_id (see catalogueIds); audiobooks are matched by title too
     loaned = set().union(*(catalogueIds(b) for b in active))
     loaned_audio = {(b.get("title") or "").strip().lower() for b in active if isAudiobook(b)}
-    can_borrow = s.katalog_configured()
+    library = s.tsk_library or "vkmr"
+    borrow_here = katalog.can_borrow(library)
+    can_borrow = borrow_here and s.katalog_configured()
     waiting = {aw["work_id"] for aw in svc.awaiting}
-    lib_url = "%s/library/%s" % (katalog.BASE_URL, esc(s.tsk_library or "vkmr"))
     rows = []
     for r in res["results"]:
         if r["work_id"] in waiting:
@@ -1316,10 +1320,10 @@ def render_search(svc, t, query, page_no, kind="ebook"):
         authors = "; ".join(r["authors"])
         rows.append(
             "<tr><td class='hide-sm c-cover'>%s</td><td class='c-title' data-v='%s'>"
-            "<a href='%s/detail/%d' target='_blank' rel='noopener'>%s</a>"
+            "<a href='%s' target='_blank' rel='noopener'>%s</a>"
             "<div class='mut pub'>%s</div></td>%s"
             "<td class='hide-sm c-auth' data-v='%s'>%s</td>%s<td class='c-act'>%s</td></tr>" % (
-                cover, esc(r["title"]), lib_url, r["work_id"],
+                cover, esc(r["title"]), esc(katalog.detail_url(library, r)),
                 esc(r["title"] or r["work_id"]), esc(r["publish_info"]),
                 kind_cell(t, r.get("audiobook")),
                 esc(authors), esc(authors), rating_cell(svc, t, r["palm_id"]), action))
@@ -1341,7 +1345,9 @@ def render_search(svc, t, query, page_no, kind="ebook"):
                          "<a href='/search?q=%s&amp;kind=%s&amp;page=%d'>%d</a>"
                          % (quote(query), quote(res["kind"]), n, n))
         table += "<p class='actions'>%s</p>" % " ".join(links)
-    if not can_borrow:
+    if not borrow_here:
+        table += "<p class='mut'>%s</p>" % esc(t("borrow.unsupported"))
+    elif not can_borrow:
         table += not_configured_hint(t)
     body.append("<div class='card'>%s</div>" % table)
     return done("".join(body))
@@ -1463,7 +1469,7 @@ def language_select(t, choice):
 
 
 def library_select(choice):
-    """<select> of the catalogues on katalog.tsk.sk; keeps an unknown code."""
+    """<select> of the supported library catalogues; keeps an unknown code."""
     opts = list(katalog.LIBRARIES)
     choice = choice or "vkmr"
     if choice not in dict(opts):

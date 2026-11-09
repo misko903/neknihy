@@ -52,6 +52,7 @@
   "borrow.title": "Hledat a půjčit e-knihu nebo audioknihu (katalog knihovny)",
   "borrow.label": "Nebo vložte odkaz na knihu v katalog.tsk.sk či její ID díla (workId)",
   "borrow.not_configured": "Pro půjčování z katalogu knihovny vyplňte přihlášení ke katalogu v {settings}.",
+  "borrow.unsupported": "Z katalogu této knihovny Neknihy zatím půjčovat neumějí, jen v něm hledají. Knihu si vypůjčte v katalogu (odkaz v názvu) a Neknihy ji pak stáhnou.",
   "btn.borrow": "Vypůjčit",
   "set.tsk": "Katalog knihovny",
   "set.tsk_username": "Přihlašovací jméno",

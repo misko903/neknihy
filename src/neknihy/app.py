@@ -60,6 +60,8 @@ class App():
     def borrowFromKatalog(self, work_id):
         """Borrow an e-book or audiobook in the library catalogue (katalog.tsk.sk)."""
         s = self.settings
+        if not katalog.can_borrow(s.tsk_library):
+            raise RuntimeError("Borrowing from this library's catalogue is not supported yet")
         if not s.katalog_configured():
             raise RuntimeError("Library catalogue login is not set")
         if self.katalog is None:
