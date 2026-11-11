@@ -150,5 +150,91 @@ class Sidebar(unittest.TestCase):
         self.assertIn("<span class='count'>2</span>", html)
 
 
+def soon(days):
+    from datetime import timedelta
+    return (webui.local_now() + timedelta(days=days)).isoformat()
+
+
+class Loans(unittest.TestCase):
+    def render(self, books=(), **kw):
+        return webui.render_index(make_svc(books=books, **kw), T)
+
+    def test_expired_in_own_section(self):
+        html = self.render([loan(1, "Aktivna", end=soon(5)),
+                            loan(2, "Stara", "expired", end=soon(-3))])
+        self.assertLess(html.index("Aktivna"), html.index("id='expired'"))
+        self.assertGreater(html.index("Stara"), html.index("id='expired'"))
+
+    def test_active_sorted_by_deadline(self):
+        html = self.render([loan(1, "Desat", end=soon(10)), loan(2, "Dva", end=soon(2))])
+        self.assertLess(html.index("Dva"), html.index("Desat"))
+
+    def test_status_labels_sk(self):
+        html = self.render([loan(1, "a", "pending", end=soon(5)),
+                            loan(2, "b", "new", end=soon(6))])
+        self.assertIn("Čaká na Palmknihy", html)
+        self.assertIn("Stiahne sa pri synchronizácii", html)
+
+    def test_soon_marked(self):
+        html = self.render([loan(1, "Dva", end=soon(2)), loan(2, "Desat", end=soon(10))])
+        self.assertEqual(html.count("class='due soon'"), 1)
+        self.assertIn("class='due soon' data-v='2'", html)
+
+    def test_actions_in_menu(self):
+        html = self.render([loan(1, "a", end=soon(5))])
+        menu = between(html, "<details class='menu'>", "</details>")
+        for a in ("refresh", "download", "sync", "return"):
+            with self.subTest(action=a):
+                self.assertEqual(html.count("value='%s'" % a), 1)
+                self.assertIn("value='%s'" % a, menu)
+
+    def test_no_file_column(self):
+        b = loan(1, "Duna", end=soon(5))
+        b["neknihy"]["filename"] = "Duna.epub"
+        html = self.render([b])
+        self.assertEqual(html.count("Duna.epub"), 1)
+        self.assertIn("data-file='Duna.epub'", html)
+
+    def test_filter_only_over_8(self):
+        books = [loan(i, "k%d" % i, end=soon(i)) for i in range(1, 9)]
+        self.assertNotIn("data-for='loans'", self.render(books))
+        books.append(loan(99, "k99", end=soon(30)))
+        self.assertIn("data-for='loans'", self.render(books))
+
+    def test_awaiting_first(self):
+        html = self.render([loan(1, "Prva", end=soon(1))],
+                           awaiting=[{"work_id": 5, "title": "Nova", "state": "waiting"}])
+        self.assertIn("Požičiava sa…", html)
+        self.assertLess(html.index("Nova"), html.index("Prva"))
+
+    def test_escaping(self):
+        evil = "<b>A'b\"&"
+        b = loan(1, evil, end=soon(5))
+        b["neknihy"]["authors"] = ["O'Brien"]
+        html = self.render([b])
+        self.assertNotIn("<b>A", html)
+        self.assertIn("data-title='%s'" % webui.esc(evil), html)
+        self.assertIn("data-authors='O&#x27;Brien'", html)
+
+    def test_same_palm_id_audio_and_ebook(self):
+        html = self.render([loan(7, "E", end=soon(5)), loan(7, "A", end=soon(5), audio=True)])
+        self.assertIn("data-key='7-e'", html)
+        self.assertIn("data-key='7-a'", html)
+
+    def test_no_cover_placeholder(self):
+        html = self.render([loan(1, "Bez obalu", end=soon(5))])
+        self.assertIn("class='ph'", html)
+        self.assertNotIn("<img src='http", html)
+
+    def test_empty_state(self):
+        html = self.render([])
+        self.assertIn("href='/search'", between(html, "<main>", "</main>"))
+        self.assertIn("Nájsť knihu", html)
+
+    def test_no_deadline_last(self):
+        html = self.render([loan(1, "Bez", None), loan(2, "S", end=soon(9))])
+        self.assertLess(html.index(">S<"), html.index(">Bez<"))
+
+
 if __name__ == "__main__":
     unittest.main()

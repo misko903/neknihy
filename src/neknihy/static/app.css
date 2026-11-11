@@ -186,6 +186,10 @@ th.sort button { padding: 0; border: 0; background: none; color: inherit; font: 
 th.sort button::after { content: '↕'; opacity: .35; }
 th[aria-sort=ascending] button::after { content: '▲'; opacity: 1; font-size: 10px; }
 th[aria-sort=descending] button::after { content: '▼'; opacity: 1; font-size: 10px; }
+table.loans { table-layout: fixed; }
+table.loans th:nth-child(2) { width: 110px; }
+table.loans th:nth-child(3) { width: 110px; }
+table.loans th:nth-child(4) { width: 240px; }
 tr.item { cursor: pointer; }
 tr.item:hover { background: var(--hover); }
 tr.item[aria-selected=true] { background: var(--sel); }

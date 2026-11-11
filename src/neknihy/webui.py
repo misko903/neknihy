@@ -326,28 +326,119 @@ def kind_cell(t, audio):
                icon("audio" if audio else "ebook")))
 
 
-# Ways to show a table (see the table[data-view] CSS and app.js)
-VIEWS = ("compact", "details", "grid")
+# Ways to show a list of books (see the table[data-view] CSS and app.js)
+VIEWS = (("list", "v-compact"), ("shelf", "v-grid"))
+FILTER_OVER = 8  # the filter box shows only with more loans than this
+
+
+def view_switch(t, table_ids):
+    """List / shelf switch for the given tables (app.js remembers it)."""
+    views = "".join(
+        "<input type='radio' name='view' value='%s' id='view-%s'%s>"
+        "<label for='view-%s'>%s<span>%s</span></label>" % (
+            v, v, " checked" if v == "list" else "", v, icon(ic), esc(t("view." + v)))
+        for v, ic in VIEWS)
+    return ("<span class='seg' role='radiogroup' aria-label='%s' data-view-for='%s'>%s</span>"
+            % (esc(t("view.label")), esc(" ".join(table_ids)), views))
 
 
 def filter_box(t, table_id):
-    """Text box that hides the rows of a table that do not match, and the
-    choice of view (see app.js)."""
-    views = "".join(
-        "<input type='radio' name='view-%s' value='%s' id='view-%s-%s'%s>"
-        "<label for='view-%s-%s' title='%s' aria-label='%s'>%s</label>" % (
-            table_id, v, table_id, v, " checked" if v == "details" else "", table_id, v,
-            esc(t("view." + v)), esc(t("view." + v)), icon("v-" + v)) for v in VIEWS)
+    """Text box that hides the rows of a table that do not match (app.js)."""
     return ("<div class='actions tfilter'><span class='withic' title='%s'>%s"
             "<input type='search' data-for='%s' placeholder='%s' aria-label='%s' "
             "autocomplete='off'></span>"
-            "<span class='mut' data-count='%s' hidden></span>"
-            "<span class='seg' role='radiogroup' aria-label='%s' data-view-for='%s'>%s</span>"
-            "</div>" % (
+            "<span class='mut' data-count='%s' hidden></span></div>" % (
                 esc(t("filter.placeholder")), icon("filter"),
                 table_id, esc(t("filter.hint")), esc(t("filter.placeholder")),
-                esc(t("filter.count", n="{n}", total="{total}")), esc(t("view.label")),
-                table_id, views))
+                esc(t("filter.count", n="{n}", total="{total}"))))
+
+
+def cover_html(src, title):
+    """Book cover, or a placeholder box with the title when there is none."""
+    if src and str(src).startswith("https://"):
+        return "<img src='%s' alt='' loading='lazy' class='cover'>" % esc(src)
+    return "<span class='ph'>%s</span>" % esc(title)
+
+
+def data_attrs(values):
+    """data-* attributes of a list item, read by the detail panel."""
+    return "".join(" data-%s='%s'" % (k, esc(v if v is not None else ""))
+                   for k, v in values.items())
+
+
+def book_cell(cover, title, authors, audio, sub=""):
+    return ("<td class='c-title' data-v='%s'><div class='bk'>%s<div><div class='t'>%s%s</div>"
+            "<div class='a'>%s</div>%s</div></div></td>" % (
+                esc(title), cover, icon("audio") if audio else "", esc(title), esc(authors),
+                sub))
+
+
+def status_pill(key, label):
+    ic = {"new": "new", "pending": "pending", "ok": "ok", "expired": "expired",
+          "awaiting": "pending"}.get(key, "info")
+    return "<span class='pill st-%s'>%s%s</span>" % (esc(key), icon(ic), esc(label))
+
+
+NO_DAYS = 99999  # sort value of a loan without a deadline (last)
+
+
+def loan_row(svc, t, book, now):
+    """One loan in the loans table / shelf."""
+    app = svc.app
+    st = status_key(book)
+    label = t("status." + st) if st != "other" else (book.get("neknihy") or {}).get("status", "")
+    end = book.get("end_time") or ""
+    days = days_left(end, now, app.dateFromString)
+    title = book.get("title") or str(book.get("palm_id", ""))
+    authors = app.bookAuthors(book)
+    audio = isAudiobook(book)
+    wid = webId(book)
+    src = book.get("cover") or book.get("base_image_url") or ""
+    date = fmt_date(t, end) if days is not None else ""
+    shown = date if st == "expired" and days is not None else due_text(t, days)
+    attrs = data_attrs({
+        "key": loan_key(book), "title": title, "authors": authors,
+        "kind": "audio" if audio else "ebook", "due": date, "days": due_text(t, days),
+        "status": label, "st": st, "file": (book.get("neknihy") or {}).get("filename", ""),
+        "cover": src if str(src).startswith("https://") else "",
+        "link": "https://www.palmknihy.cz/kniha/%s" % wid if wid else "",
+        "palm": book.get("palm_id", ""), "audio": "1" if audio else "0"})
+    return ("<tr class='item' tabindex='0'%s>%s<td class='due%s' data-v='%d'>%s</td>%s"
+            "<td data-v='%s'>%s</td></tr>" % (
+                attrs, book_cell(cover_html(src, title), title, authors, audio),
+                " soon" if is_soon(days) and st != "expired" else "",
+                NO_DAYS if days is None else days, esc(shown), rating_cell(svc, t, wid),
+                esc(label), status_pill(st, label)))
+
+
+def awaiting_row(t, aw):
+    """A loan borrowed in the catalogue that Palmknihy does not list yet."""
+    title = aw.get("title") or "workId %s" % aw.get("work_id")
+    sub = "<div class='a'>%s</div>" % esc(t("await." + aw.get("state", "waiting"), s=WAIT_STEP))
+    label = t("status.awaiting")
+    return ("<tr class='await'>%s<td class='due' data-v='-1'>–</td>"
+            "<td class='rt mut' data-v='-1'>–</td><td data-v=''>%s</td></tr>" % (
+                book_cell(cover_html("", title), title, "", False, sub),
+                status_pill("awaiting", label)))
+
+
+def loans_table(t, table_id, rows):
+    return ("<table class='sortable loans' id='%s' data-view='list' %s><thead><tr>%s%s%s"
+            "<th>%s</th></tr></thead><tbody>%s</tbody></table>" % (
+                table_id, rating_attrs(t), sort_th(t("th.book")),
+                sort_th(t("th.left"), "num"), sort_th(t("th.rating"), "num", first="desc"),
+                esc(t("th.status")), "".join(rows)))
+
+
+def actions_menu(svc, t):
+    """⋮ menu with the single steps of a sync and borrowing by link."""
+    buttons = "".join(
+        "<button name='a' value='%s'>%s%s</button>" % (a, icon(a), esc(t("btn." + a)))
+        for a in ("refresh", "download", "sync", "return"))
+    return ("<details class='menu'><summary title='%s' aria-label='%s'>%s</summary>"
+            "<div class='pop'><form method='post' action='/action' class='acts'>%s</form>%s"
+            "</div></details>" % (esc(t("nav.actions")), esc(t("nav.actions")), icon("more"),
+                                  buttons, borrow_form(svc, t)))
 
 
 def rating_attrs(t):
@@ -463,73 +554,30 @@ def render_search(svc, t, query, page_no, kind="ebook"):
 
 def render_index(svc, t):
     app = svc.app
-    rows = []
-    for b in app.books:
-        st = b.get("neknihy", {}).get("status", "")
-        if st == "deleted":
-            continue
-        label = t("status." + st) if st in STATUSES else st
-        src = b.get("cover") or b.get("base_image_url") or ""
-        cover = ("<img src='%s' alt='' loading='lazy' class='cover'>" % esc(src)
-                 if src.startswith("https://") else "")
-        title = b.get("title") or b.get("palm_id") or ""
-        authors = app.bookAuthors(b)
-        filename = b.get("neknihy", {}).get("filename", "")
-        # the title opens the book on palmknihy.cz when its web ID is known
-        wid = webId(b)
-        name = ("<a href='https://www.palmknihy.cz/kniha/%s' target='_blank' "
-                "rel='noopener'>%s</a>" % (esc(str(wid)), esc(title)) if wid else esc(title))
-        delete = ("<td class='c-act'><form method='post' action='/delete' class='del' "
-                  "data-confirm='%s'><input type='hidden' name='palm_id' value='%s'>"
-                  "<input type='hidden' name='audio' value='%d'>"
-                  "<button title='%s' aria-label='%s'>%s</button></form></td>" % (
-                      esc(t("delete.confirm", title=title)), esc(b.get("palm_id", "")),
-                      isAudiobook(b), esc(t("btn.delete")), esc(t("btn.delete")),
-                      icon("delete")))
-        rows.append(
-            "<tr><td class='c-title' data-v='%s'><div class='bk'>%s<div>%s"
-            "<div class='mut only-sm'>%s</div></div></div></td>%s"
-            "<td class='hide-sm c-auth' data-v='%s'>%s</td>%s"
-            "<td class='hide-sm mut c-file' data-v='%s'>%s</td>"
-            "<td class='hide-sm c-due' data-v='%s'>%s</td>"
-            "<td data-v='%d'><span class='st st-%s'>%s%s</span></td>%s</tr>" % (
-                esc(title), cover, name, esc(authors), kind_cell(t, isAudiobook(b)),
-                esc(authors), esc(authors), rating_cell(svc, t, wid),
-                esc(filename), esc(filename),
-                esc(b.get("end_time") or ""), fmt_date(t, b.get("end_time", "")),
-                STATUSES.index(st) if st in STATUSES else len(STATUSES), esc(st),
-                icon(st) if st in STATUSES else "", esc(label), delete))
-    table = ("%s<table class='sortable' id='loans' data-view='details' %s><thead><tr>%s%s%s%s%s%s%s<th></th></tr>"
-             "</thead><tbody>%s</tbody></table>%s%s" % (
-                 filter_box(t, "loans"), rating_attrs(t), sort_th(t("th.book")),
-                 sort_th(t("th.type")), sort_th(t("th.author"), cls="hide-sm"),
-                 sort_th(t("th.rating"), "num", first="desc"),
-                 sort_th(t("th.file"), cls="hide-sm"),
-                 sort_th(t("th.due"), cls="hide-sm"), sort_th(t("th.status")),
-                 "".join(rows), "", "")
-             if rows else "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("empty"))))
-    status = run_status(svc, t)
-    buttons = "".join(
-        "<button name='a' value='%s'%s title='%s'>%s<span>%s</span></button>"
-        % (a, " class='primary'" if a == "run" else "", esc(t("btn." + a)), icon(a),
-           esc(t("btn." + a)))
-        for a in ("run", "refresh", "download", "sync", "return"))
-    awaiting = "".join(
-        "<div class='card'><p class='st st-pending' style='margin:0'>%s<b>%s</b></p>"
-        "<p class='mut' style='margin:4px 0 0'>%s</p></div>" % (
-            icon("pending"),
-            esc(t("await.title", title=aw["title"] or "workId %s" % aw["work_id"])),
-            esc(t("await." + aw["state"], s=WAIT_STEP)))
-        for aw in list(svc.awaiting))
-    # the loans with the actions that work on them (search is in the header)
-    body = ("%s<div class='card'><div class='cardhead'><h2>%s%s</h2>"
-            "<form method='post' action='/action' class='actions'>%s</form></div>"
-            "<p class='mut status'>%s</p>%s%s</div>" % (
-                awaiting, icon("loans"), esc(t("nav.loans")),
-                buttons, "<br>".join(status), table, ""))
+    now = local_now()
+    active, expired = split_loans(app.books, now, app.dateFromString)
+    awaiting = list(svc.awaiting)
+    tables = ["loans"] + (["expired"] if expired else [])
+    head = ("<div class='head'><h1>%s</h1><div class='tools'>%s%s</div></div>" % (
+        esc(t("nav.loans")), view_switch(t, tables), actions_menu(svc, t)))
+    if not (active or expired or awaiting):
+        body = head + ("<div class='empty'>%s<p>%s</p><a class='btn' href='/search'>%s%s</a>"
+                       "</div>" % (icon("empty"), esc(t("loans.empty")), icon("search"),
+                                   esc(t("loans.empty_link"))))
+    else:
+        rows = [awaiting_row(t, aw) for aw in awaiting]
+        rows += [loan_row(svc, t, b, now) for b in active]
+        body = head
+        if len(active) + len(expired) > FILTER_OVER:
+            body += filter_box(t, "loans")
+        body += loans_table(t, "loans", rows)
+        if expired:
+            body += ("<div class='section'><h2>%s%s</h2>%s</div>" % (
+                icon("expired"), esc(t("loans.expired_title")),
+                loans_table(t, "expired", [loan_row(svc, t, b, now) for b in expired])))
     busy = svc.running or svc.awaiting
     return page(t, "Neknihy NextGen", body, "/", refresh=PAGE_REFRESH if busy else None,
-                svc=svc)
+                svc=svc, detail=True)
 
 
 def run_status(svc, t):
