@@ -13,15 +13,9 @@
   "status.pending": "Waiting for Palmknihy",
   "status.ok": "Downloaded",
   "status.expired": "Expired",
-  "empty": "No loans. Try “Refresh”.",
   "not_configured": "Not configured",
   "not_configured.hint": "fill in the {settings}.",
   "settings_link": "settings",
-  "running": "Operation in progress…",
-  "last_run": "Last run: {time} ({result})",
-  "next_run": "Next run: {time}",
-  "result.ok": "OK",
-  "result.error": "error: {error}",
   "btn.refresh": "Load loans from Palmknihy",
   "btn.download": "Download new books",
   "btn.sync": "Copy to reader",
@@ -118,5 +112,6 @@
   "detail.open_palm": "Open on Palmknihy",
   "detail.open_catalog": "Open in the catalogue",
   "detail.published": "Edition",
-  "search.title": "Search the library catalogue"
+  "search.title": "Search the library catalogue",
+  "log.empty": "The log is empty so far."
 }

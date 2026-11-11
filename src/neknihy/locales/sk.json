@@ -13,15 +13,9 @@
   "status.pending": "Čaká na Palmknihy",
   "status.ok": "Stiahnutá",
   "status.expired": "Prepadnutá",
-  "empty": "Žiadne výpožičky. Skúste „Obnoviť“.",
   "not_configured": "Nie je nastavené",
   "not_configured.hint": "vyplňte {settings}.",
   "settings_link": "nastavenia",
-  "running": "Prebieha operácia…",
-  "last_run": "Posledný beh: {time} ({result})",
-  "next_run": "Ďalší beh: {time}",
-  "result.ok": "OK",
-  "result.error": "chyba: {error}",
   "btn.refresh": "Načítať výpožičky z Palmknihy",
   "btn.download": "Stiahnuť nové knihy",
   "btn.sync": "Kopírovať na čítačku",
@@ -118,5 +112,6 @@
   "detail.open_palm": "Otvoriť na Palmknihy",
   "detail.open_catalog": "Otvoriť v katalógu",
   "detail.published": "Vydanie",
-  "search.title": "Hľadať v katalógu knižnice"
+  "search.title": "Hľadať v katalógu knižnice",
+  "log.empty": "Záznam je zatiaľ prázdny."
 }

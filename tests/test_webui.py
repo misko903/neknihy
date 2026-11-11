@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import unittest
 from datetime import datetime, timezone
@@ -300,6 +301,23 @@ class Search(unittest.TestCase):
         tpl = between(html, "<template id='search-tpl'>", "</template>")
         self.assertIn("action='/borrow'", tpl)
         self.assertIn("data-eq='action:borrow'", tpl)
+
+
+class SettingsAndLog(unittest.TestCase):
+    def test_settings_section_anchors(self):
+        html = webui.render_settings(make_svc(), T)
+        links = re.findall(r"href='#(set-[a-z]+)'", html)
+        self.assertEqual(len(links), 6)
+        for anchor in links:
+            self.assertIn("id='%s'" % anchor, html)
+
+    def test_log_has_heading(self):
+        html = webui.render_log(make_svc(), T)
+        self.assertIn("<h1>%s</h1>" % T("log.title"), html)
+
+    def test_log_no_repeated_run_status(self):
+        html = webui.render_log(make_svc(last_run=NOW), T)
+        self.assertNotIn("class='mut status'", html)
 
 
 if __name__ == "__main__":

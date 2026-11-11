@@ -13,15 +13,9 @@
   "status.pending": "Wartet auf Palmknihy",
   "status.ok": "Heruntergeladen",
   "status.expired": "Abgelaufen",
-  "empty": "Keine Ausleihen. Versuchen Sie „Aktualisieren“.",
   "not_configured": "Nicht eingerichtet",
   "not_configured.hint": "bitte die {settings} ausfüllen.",
   "settings_link": "Einstellungen",
-  "running": "Vorgang läuft…",
-  "last_run": "Letzter Lauf: {time} ({result})",
-  "next_run": "Nächster Lauf: {time}",
-  "result.ok": "OK",
-  "result.error": "Fehler: {error}",
   "btn.refresh": "Ausleihen von Palmknihy laden",
   "btn.download": "Neue Bücher herunterladen",
   "btn.sync": "Auf den Reader kopieren",
@@ -118,5 +112,6 @@
   "detail.open_palm": "Auf Palmknihy öffnen",
   "detail.open_catalog": "Im Katalog öffnen",
   "detail.published": "Ausgabe",
-  "search.title": "Im Bibliothekskatalog suchen"
+  "search.title": "Im Bibliothekskatalog suchen",
+  "log.empty": "Das Protokoll ist noch leer."
 }

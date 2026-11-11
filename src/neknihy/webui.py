@@ -655,39 +655,15 @@ def render_index(svc, t):
                 svc=svc, detail=loan_detail(t))
 
 
-def run_status(svc, t):
-    """Lines about the last/next run (and a hint when not configured)."""
-    app = svc.app
-    status = []
-    if not app.settings.configured():
-        link = "<a href='/settings'>%s</a>" % esc(t("settings_link"))
-        hint = esc(t("not_configured.hint", settings="\x00")).replace("\x00", link)
-        status.append("<span class='st st-pending'>%s<b>%s</b></span> – %s" % (
-            icon("warn"), esc(t("not_configured")), hint))
-    if svc.running:
-        status.append(esc(t("running")))
-    if svc.last_run:
-        result = t("result.ok") if svc.last_error is None else t(
-            "result.error", error=svc.last_error)
-        status.append(esc(t("last_run", time=svc.last_run.strftime(t("fmt.datetime")),
-                            result=result)))
-    if svc.next_run and svc.web["interval"] > 0:
-        status.append(esc(t("next_run", time=datetime.fromtimestamp(
-            svc.next_run).strftime(t("fmt.datetime")))))
-    return status
-
-
 def render_log(svc, t):
     lines = "\n".join(reversed(svc.log.lines))
-    body = ("<div class='card'><h2 title='%s' aria-label='%s'>%s</h2>"
-            "<p class='mut status'>%s</p>%s</div>" % (
-        esc(t("log.title")), esc(t("log.title")), icon("log"), "<br>".join(run_status(svc, t)),
-        "<pre class='logfull'>%s</pre>" % esc(lines) if lines else
-        "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("empty")))))
+    body = ("<div class='head'><h1>%s</h1></div>%s" % (
+        esc(t("log.title")),
+        "<div class='card'><pre class='logfull'>%s</pre></div>" % esc(lines) if lines else
+        "<div class='empty'>%s<p>%s</p></div>" % (icon("empty"), esc(t("log.empty")))))
     busy = svc.running or svc.awaiting
     return page(t, "%s – Neknihy NextGen" % t("log.title"), body, "/log",
-                refresh=PAGE_REFRESH if busy else None,
-                svc=svc)
+                refresh=PAGE_REFRESH if busy else None, svc=svc)
 
 
 def language_select(t, choice):
@@ -714,8 +690,12 @@ def library_select(choice):
 def render_settings(svc, t, lang_choice="auto"):
     s = svc.app.settings
 
-    def section(ico, title, inner):
-        return "<div class='card set'><h2>%s%s</h2>%s</div>" % (icon(ico), esc(t(title)), inner)
+    sections = []
+
+    def section(anchor, ico, title, inner):
+        sections.append((anchor, title))
+        return "<div class='card set' id='set-%s'><h2>%s%s</h2>%s</div>" % (
+            anchor, icon(ico), esc(t(title)), inner)
 
     def field(key, control, hint=None):
         return "<label>%s%s</label>%s" % (
@@ -754,13 +734,16 @@ def render_settings(svc, t, lang_choice="auto"):
                    text("tsk_username", s.tsk_username, extra=" autocomplete='off'"),
                    "set.tsk_username_hint")
            + field("set.password", password("tsk_password", s.tsk_password)))
-    body = ("<form method='post' action='/settings'>%s%s%s%s%s%s"
+    cards = "".join((
+        section("general", "settings", "set.sec_general", general),
+        section("account", "download", "set.sec_account", account),
+        section("katalog", "loans", "set.tsk", tsk),
+        section("folders", "ebook", "set.sec_folders", folders),
+        section("convert", "refresh", "set.sec_convert", convert),
+        section("auto", "pending", "set.sec_auto", auto)))
+    toc = "".join("<a href='#set-%s'>%s</a>" % (a, esc(t(title))) for a, title in sections)
+    body = ("<div class='head'><h1>%s</h1></div><nav class='toc'>%s</nav>"
+            "<form method='post' action='/settings'>%s"
             "<p><button class='primary'>%s%s</button></p></form>") % (
-        section("settings", "set.sec_general", general),
-        section("download", "set.sec_account", account),
-        section("loans", "set.tsk", tsk),
-        section("ebook", "set.sec_folders", folders),
-        section("refresh", "set.sec_convert", convert),
-        section("pending", "set.sec_auto", auto),
-        icon("ok"), esc(t("set.save")))
+        esc(t("title.settings")), toc, cards, icon("ok"), esc(t("set.save")))
     return page(t, "%s – Neknihy NextGen" % t("title.settings"), body, "/settings", svc=svc)
