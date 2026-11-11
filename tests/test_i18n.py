@@ -47,9 +47,9 @@ class Selection(unittest.TestCase):
 
     def test_fallback_to_english_then_key(self):
         t = i18n.Translator("sk")
-        self.assertEqual(t("btn.run"), "Spustiť všetko")
+        self.assertEqual(t("btn.sync_now"), "Synchronizovať")
         t._data = {}
-        self.assertEqual(t("btn.run"), "Run all")
+        self.assertEqual(t("btn.sync_now"), "Sync now")
         self.assertEqual(t("no.such.key"), "no.such.key")
         self.assertEqual(i18n.Translator("xx").lang, "en")
 
