@@ -113,5 +113,6 @@
   "detail.open_catalog": "Im Katalog öffnen",
   "detail.published": "Ausgabe",
   "search.title": "Im Bibliothekskatalog suchen",
-  "log.empty": "Das Protokoll ist noch leer."
+  "log.empty": "Das Protokoll ist noch leer.",
+  "detail.back": "Zurück"
 }

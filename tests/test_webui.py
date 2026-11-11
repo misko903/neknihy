@@ -246,6 +246,11 @@ class Detail(unittest.TestCase):
         self.assertIn("action='/delete'", tpl)
         self.assertIn("Otvoriť na Palmknihy", tpl)
 
+    def test_detail_has_back_for_narrow_windows(self):
+        html = webui.render_index(make_svc(books=[loan(1, "a", end=soon(5))]), T)
+        tpl = between(html, "<template id='detail-tpl'>", "</template>")
+        self.assertIn("<span class='back'>Späť</span>", tpl)
+
 
 def result(work_id, title, palm_id=None, audiobook=False, cover=""):
     return {"work_id": work_id, "title": title, "palm_id": palm_id, "authors": ["Autor"],

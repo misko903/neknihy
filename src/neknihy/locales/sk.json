@@ -113,5 +113,6 @@
   "detail.open_catalog": "Otvoriť v katalógu",
   "detail.published": "Vydanie",
   "search.title": "Hľadať v katalógu knižnice",
-  "log.empty": "Záznam je zatiaľ prázdny."
+  "log.empty": "Záznam je zatiaľ prázdny.",
+  "detail.back": "Späť"
 }

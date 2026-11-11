@@ -113,5 +113,6 @@
   "detail.open_catalog": "Open in the catalogue",
   "detail.published": "Edition",
   "search.title": "Search the library catalogue",
-  "log.empty": "The log is empty so far."
+  "log.empty": "The log is empty so far.",
+  "detail.back": "Back"
 }

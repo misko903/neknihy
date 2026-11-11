@@ -599,11 +599,13 @@ def render_search(svc, t, query, page_no, kind="ebook"):
 
 def detail_head(t):
     """Top of a detail panel: close button, cover, title, authors, status."""
-    return ("<button type='button' class='close' data-close title='%s' aria-label='%s'>%s</button>"
+    return ("<button type='button' class='close' data-close title='%s' aria-label='%s'>%s"
+            "<span class='back'>%s</span></button>"
             "<img class='dcover' alt='' data-src='cover'>"
             "<h2 data-f='title'></h2><p class='dauth' data-f='authors'></p>"
             "<span class='pill' data-st='st' data-f='status'></span>" % (
-                esc(t("detail.close")), esc(t("detail.close")), icon("close")))
+                esc(t("detail.close")), esc(t("detail.close")), icon("close"),
+                esc(t("detail.back"))))
 
 
 def detail_row(t, key, field, show=None):

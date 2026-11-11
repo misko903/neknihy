@@ -127,13 +127,13 @@ ako počiatočné, ďalej platí to, čo uložíte vo webovom rozhraní.
 ### Požičiavanie z katalógu knižnice (katalog.tsk.sk)
 
 Knižnice Trenčianskeho samosprávneho kraja (napr. VKMR Trenčín) požičiavajú
-e-knihy Palmknihy cez svoj online katalóg. Na hlavnej stránke je pole
-„Hľadať a požičať e-knihu“: zadajte názov, autora alebo ISBN a Neknihy zobrazia
-e-knihy z katalógu (hľadanie nevyžaduje prihlásenie). Po vyplnení prihlásenia
-do katalógu v nastaveniach má každá kniha tlačidlo „Požičať“; Neknihy ju vypožičajú
-a hneď stiahnu z Palmknihy (a prípadne synchronizujú). Knihy, ktoré už máte
-vypožičané, sú vo výsledkoch označené. Namiesto hľadania sa dá vložiť aj odkaz
-na knihu v katalógu alebo jej ID diela (`workId`).
+e-knihy Palmknihy cez svoj online katalóg. V časti **Hľadať** v ľavom paneli
+zadajte názov, autora alebo ISBN a Neknihy zobrazia e-knihy alebo audioknihy
+z katalógu (hľadanie nevyžaduje prihlásenie). Po vyplnení prihlásenia do katalógu
+v nastaveniach má každá kniha tlačidlo „Požičať“; Neknihy ju vypožičajú a hneď
+stiahnu z Palmknihy (a prípadne synchronizujú). Knihy, ktoré už máte vypožičané,
+sú vo výsledkoch označené. Namiesto hľadania sa dá v menu ⋮ na stránke
+Výpožičky vložiť aj odkaz na knihu v katalógu alebo jej ID diela (`workId`).
 
 Z príkazového riadka:
 `python3 src/neknihy_cli.py --search poirot` (vypíše `workId` nájdených e-kníh),
@@ -144,12 +144,12 @@ Z príkazového riadka:
 V nastaveniach sa dá ako knižnica zvoliť aj Mestská knižnica v Bratislave
 (`NEKNIHY_TSK_LIBRARY=mkb`, katalóg opac.mestskakniznica.sk). Neknihy v jej
 katalógu hľadajú e-knihy a audioknihy z Palmknihy podľa názvu a autora, požičať
-si ich ale zatiaľ treba priamo v katalógu (názov knihy vo výsledkoch naň
-odkazuje). Vypožičanú knihu potom Neknihy stiahnu z Palmknihy ako obvykle.
+si ich ale zatiaľ treba priamo v katalógu (odkaz „Otvoriť v katalógu“
+v detaile knihy). Vypožičanú knihu potom Neknihy stiahnu z Palmknihy ako obvykle.
 Hľadanie je pomalšie ako v katalog.tsk.sk (niekoľko sekúnd, 10 kníh na stranu).
 
 Webové rozhranie je v češtine, slovenčine, angličtine a nemčine. Jazyk sa
-vyberá podľa prehliadača a dá sa prepnúť v záhlaví stránky. Preklady sú
+vyberá podľa prehliadača a dá sa prepnúť v Nastaveniach. Preklady sú
 v `src/neknihy/locales/*.json`; nový jazyk pridáte skopírovaním `en.json`
 pod kódom jazyka (napr. `pl.json`) a preložením hodnôt. Chýbajúce texty sa
 zobrazia po anglicky. Kontrola prekladov: `python3 -m unittest discover tests`.
@@ -158,6 +158,11 @@ Jednorazovo bez webu (napr. z cronu):
 `NEKNIHY_EMAIL=... NEKNIHY_PASSWORD=... python3 src/neknihy_cli.py --once --workdir ~/knihy`
 
 ## Snímka obrazovky
+
+Vľavo je navigácia (Výpožičky, Hľadať, Nastavenia), stav poslednej
+synchronizácie a tlačidlo Synchronizovať. Výpožičky aj výsledky hľadania sa dajú
+zobraziť ako zoznam alebo polica obalov; kliknutím na knihu sa vpravo otvorí jej
+detail.
 
 ![Webové rozhranie: vyhľadávanie v katalógu knižnice](contrib/screenshot.png "Webové rozhranie")
 
