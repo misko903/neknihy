@@ -111,5 +111,44 @@ class Helpers(unittest.TestCase):
         self.assertEqual(webui.loan_key(loan(7, "a", audio=True)), "7-a")
 
 
+def between(html, start, end):
+    """The part of html from the first ``start`` to the next ``end``."""
+    i = html.index(start)
+    return html[i:html.index(end, i)]
+
+
+class Sidebar(unittest.TestCase):
+    def test_sidebar_nav_marks_current(self):
+        html = webui.render_settings(make_svc(), T)
+        self.assertEqual(html.count("aria-current='page'"), 1)
+        self.assertIn("href='/settings' aria-current='page'", html)
+
+    def test_sidebar_one_sync_button(self):
+        html = webui.render_log(make_svc(), T)
+        self.assertEqual(html.count("value='run'"), 1)
+        self.assertIn("value='run'", between(html, "class='sync'", "</aside>"))
+        self.assertNotIn("value='refresh'", html)
+
+    def test_sidebar_not_configured(self):
+        html = webui.render_log(make_svc(configured=False), T)
+        self.assertNotIn("value='run'", html)
+        self.assertIn("href='/settings'", between(html, "class='sync'", "</aside>"))
+
+    def test_sidebar_error_truncated(self):
+        err = "x" * 200 + "\nsecond"
+        html = webui.render_log(make_svc(last_run=NOW, last_error=err), T)
+        sync = between(html, "class='sync'", "</form>")
+        self.assertIn(">" + "x" * 80 + "…<", sync)
+        self.assertIn("title='" + "x" * 200, sync)
+        visible = sync.replace("title='" + webui.esc(err) + "'", "")
+        self.assertNotIn("second", visible)
+
+    def test_loans_count(self):
+        books = [loan(1, "a", end="2099-01-01T00:00:00+00:00"), loan(2, "b"),
+                 loan(3, "c", "expired", end="2020-01-01T00:00:00+00:00")]
+        html = webui.render_log(make_svc(books=books), T)
+        self.assertIn("<span class='count'>2</span>", html)
+
+
 if __name__ == "__main__":
     unittest.main()

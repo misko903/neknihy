@@ -1,16 +1,24 @@
 // Neknihy NextGen web UI scripts (loaded at the end of <body>).
 // Theme toggle; the saved theme itself is applied by an inline script in <head>.
 function nkLabel(){var b=document.querySelector('.theme'),m=document.documentElement.getAttribute('data-theme')||'auto';b.title=b.getAttribute('data-'+m);b.setAttribute('aria-label',b.title)}document.addEventListener('DOMContentLoaded',nkLabel);function nkTheme(){var r=document.documentElement,c=r.getAttribute('data-theme')||'auto',n={auto:'light',light:'dark',dark:'auto'}[c];try{n=='auto'?localStorage.removeItem('nk-theme'):localStorage.setItem('nk-theme',n)}catch(e){}n=='auto'?r.removeAttribute('data-theme'):r.setAttribute('data-theme',n);nkLabel()}
-// Close ⋮ menus on an outside click; remember / link the last search.
-document.addEventListener('click',function(e){
-document.querySelectorAll('details.menu[open]').forEach(function(d){
-if(!d.contains(e.target))d.removeAttribute('open');});});
-(function(){var a=document.getElementById('found');
-if(location.pathname==='/search'){try{localStorage.setItem('neknihy.lastsearch',
-location.pathname+location.search);}catch(e){}return;}
-if(!a)return;var s=null;
-try{s=localStorage.getItem('neknihy.lastsearch');}catch(x){}
-if(s&&s.indexOf('/search?')===0){a.href=s;a.hidden=false;}})();
+// Close ⋮ menus on an outside click.
+document.addEventListener('click', function (e) {
+  document.querySelectorAll('details.menu[open]').forEach(function (d) {
+    if (!d.contains(e.target)) d.removeAttribute('open');
+  });
+});
+// The search page remembers itself; "Search" in the sidebar goes back to it.
+(function () {
+  if (location.pathname === '/search') {
+    if (location.search) {
+      try { localStorage.setItem('neknihy.lastsearch', location.pathname + location.search); } catch (e) {}
+    }
+    return;
+  }
+  var a = document.getElementById('nav-search'), s = null;
+  try { s = localStorage.getItem('neknihy.lastsearch'); } catch (e) {}
+  if (a && s && s.indexOf('/search?') === 0) a.href = s;
+})();
 // Confirm before deleting a loan.
 document.querySelectorAll('form.del').forEach(function(f){
 f.addEventListener('submit',function(e){if(!confirm(f.dataset.confirm))e.preventDefault();});

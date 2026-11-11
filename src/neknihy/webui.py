@@ -201,71 +201,94 @@ def header_search(t, query="", kind="ebook"):
                 esc(t("btn.search")), icon("search")))
 
 
-def header_menu(svc, t):
-    """⋮ menu next to the search: borrowing by a catalogue link or workId."""
-    s = svc.app.settings if svc else None
-    if s is not None and not katalog.can_borrow(s.tsk_library):
-        inner = "<p class='mut'>%s</p>" % esc(t("borrow.unsupported"))
-    elif s is None or s.katalog_configured():
-        inner = ("<form method='post' action='/borrow'><label for='work'>%s</label>"
-                 "<div class='actions'><input type='text' name='work' id='work' required "
-                 "style='flex:1;min-width:0' placeholder='https://katalog.tsk.sk/…?workId=1439847'>"
-                 "<button class='primary'>%s<span>%s</span></button></div></form>" % (
-                     esc(t("borrow.label")), icon("borrow"), esc(t("btn.borrow"))))
+def borrow_form(svc, t):
+    """Borrowing by a catalogue link or workId (in the loans ⋮ menu)."""
+    s = svc.app.settings
+    if not katalog.can_borrow(s.tsk_library):
+        return "<p class='mut'>%s</p>" % esc(t("borrow.unsupported"))
+    if not s.katalog_configured():
+        return not_configured_hint(t)
+    return ("<form method='post' action='/borrow' class='borrow'><label for='work'>%s</label>"
+            "<div class='actions'><input type='text' name='work' id='work' required "
+            "placeholder='https://katalog.tsk.sk/…?workId=1439847'>"
+            "<button class='primary'>%s<span>%s</span></button></div></form>" % (
+                esc(t("borrow.label")), icon("borrow"), esc(t("btn.borrow"))))
+
+
+def local_now():
+    return datetime.now().astimezone()
+
+
+ERROR_CHARS = 80  # of the last error shown in the sidebar (all of it in title)
+
+
+def sync_block(svc, t):
+    """Sync state, last/next time and the one Synchronise button."""
+    app = svc.app
+    if not app.settings.configured():
+        link = "<a href='/settings'>%s</a>" % esc(t("settings_link"))
+        hint = esc(t("not_configured.hint", settings="\x00")).replace("\x00", link)
+        return ("<div class='sync'><p class='st st-pending'>%s<b>%s</b></p>"
+                "<p class='mut'>%s</p></div>" % (icon("warn"), esc(t("not_configured")), hint))
+    if svc.running:
+        state = "<p class='st st-pending'>%s%s</p>" % (icon("pending"), esc(t("sync.running")))
+    elif svc.last_error:
+        first = str(svc.last_error).splitlines()[0] if str(svc.last_error).strip() else ""
+        short = first if len(first) <= ERROR_CHARS else first[:ERROR_CHARS] + "…"
+        state = ("<p class='st st-expired'>%s%s</p><p class='err' title='%s'>%s</p>" % (
+            icon("warn"), esc(t("sync.error")), esc(svc.last_error), esc(short)))
+    elif svc.last_run:
+        state = "<p class='st st-ok'>%s%s</p>" % (icon("ok"), esc(t("sync.ok")))
     else:
-        inner = not_configured_hint(t)
-    return ("<details class='menu'><summary title='%s' aria-label='%s'>%s</summary>"
-            "<div class='pop'>%s</div></details>" % (
-                esc(t("nav.more")), esc(t("nav.more")), icon("more"), inner))
+        state = ""
+    times = []
+    if svc.last_run:
+        times.append(esc(t("sync.last", time=svc.last_run.strftime(t("fmt.datetime")))))
+    if svc.next_run and svc.web["interval"] > 0:
+        times.append(esc(t("sync.next", time=datetime.fromtimestamp(
+            svc.next_run).strftime(t("fmt.datetime")))))
+    return ("<div class='sync'>%s%s<form method='post' action='/action'>"
+            "<button name='a' value='run' class='primary'>%s%s</button></form></div>" % (
+                state, "<p class='mut'>%s</p>" % "<br>".join(times) if times else "",
+                icon("refresh"), esc(t("btn.sync_now"))))
 
 
-# The header title always leads to the loans (the home screen). The header
-# tab names where it switches to: on the loans page it is "Found" and opens
-# the last search (localStorage "neknihy.lastsearch", saved by the search
-# page; the tab stays hidden when there is none); elsewhere it is "Loans".
-# A click outside the ⋮ menu closes it.
+def sidebar(svc, t, path):
+    """Brand, navigation, sync state, log link and theme toggle."""
+    active, _ = split_loans(svc.app.books, local_now(), svc.app.dateFromString)
+
+    def link(href, ic, key, extra="", attrs=""):
+        cur = " aria-current='page'" if href == path else ""
+        return "<a href='%s'%s%s>%s<span>%s</span>%s</a>" % (
+            href, cur, attrs, icon(ic), esc(t(key)), extra)
+    nav = (link("/", "loans", "nav.loans", "<span class='count'>%d</span>" % len(active))
+           + link("/search", "search", "nav.search", attrs=" id='nav-search'")
+           + link("/settings", "settings", "nav.settings"))
+    theme = ("<button type='button' class='theme' onclick='nkTheme()' %s>%s%s%s</button>" % (
+        " ".join("data-%s='%s: %s'" % (m, esc(t("theme.toggle")), esc(t("theme." + m)))
+                 for m in THEMES),
+        icon("auto", "ic t-auto"), icon("sun", "ic t-light"), icon("moon", "ic t-dark")))
+    log_cur = " aria-current='page'" if path == "/log" else ""
+    return ("<aside class='side'><a href='/' class='brand'><img src='/icon.png?v=%s' alt=''>"
+            "<span>Neknihy</span></a><nav>%s</nav>%s"
+            "<div class='foot'><a href='/log'%s>%s<span>%s</span></a>%s</div></aside>" % (
+                STATIC_VER, nav, sync_block(svc, t), log_cur, icon("log"),
+                esc(t("log.title")), theme))
 
 
-def nav_tabs(t, path):
-    """The header tab names where it switches to: the found titles from the
-    loans page (shown by app.js once there is a last search), the loans
-    from anywhere else."""
-    if path == "/":
-        return "<a href='/search' id='found' hidden>%s%s</a>" % (
-            icon("search"), esc(t("nav.found")))
-    return "<a href='/'>%s%s</a>" % (icon("loans"), esc(t("nav.loans")))
-
-
-def icon_link(t, href, ic, key, path):
-    """Icon-only header link (log, settings)."""
-    on = href == path
-    return "<a href='%s' class='icbtn%s' title='%s' aria-label='%s'%s>%s</a>" % (
-        href, " on" if on else "", esc(t(key)), esc(t(key)),
-        " aria-current='page'" if on else "", icon(ic))
-
-
-def page(t, title, body, path="/", refresh=None, query="", kind="ebook", svc=None):
+def page(t, title, body, path="/", refresh=None, svc=None, detail=False):
     meta = "<meta http-equiv='refresh' content='%d'>" % refresh if refresh else ""
     return ("<!doctype html><html lang='%s'><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width,initial-scale=1'>%s"
             "<title>%s</title><link rel='icon' type='image/png' href='/favicon.png?v=%s'>"
             "<link rel='apple-touch-icon' href='/apple-touch-icon.png?v=%s'>"
             "<link rel='stylesheet' href='/app.css?v=%s'><script>%s</script></head><body>"
-            "<header><h1><a href='/' id='brand' title='%s'><img src='/icon.png?v=%s' alt=''>"
-            "Neknihy NextGen</a></h1>%s%s<nav>%s</nav>"
-            "%s%s"
-            "<button type='button' class='theme' onclick='nkTheme()' %s>%s%s%s</button>"
-            "</header><main>%s</main><script src='/app.js?v=%s'></script></body></html>"
+            "<div class='shell'>%s<main>%s</main>%s</div>"
+            "<script src='/app.js?v=%s'></script></body></html>"
             % (t.lang, meta, esc(title), STATIC_VER, STATIC_VER, STATIC_VER, THEME_JS,
-               esc(t("nav.brand")), STATIC_VER, header_search(t, query, kind),
-               header_menu(svc, t), nav_tabs(t, path),
-               icon_link(t, "/log", "log", "log.title", path),
-               icon_link(t, "/settings", "settings", "nav.settings", path),
-               " ".join(
-                   "data-%s='%s: %s'" % (m, esc(t("theme.toggle")), esc(t("theme." + m)))
-                   for m in THEMES),
-               icon("auto", "ic t-auto"), icon("sun", "ic t-light"), icon("moon", "ic t-dark"),
-               body, STATIC_VER))
+               sidebar(svc, t, path) if svc else "", body,
+               "<aside id='detail' class='detail' hidden></aside>" if detail else "",
+               STATIC_VER))
 
 
 # Theme cycle on the header button; "auto" follows the system setting.
@@ -359,8 +382,8 @@ def render_search(svc, t, query, page_no, kind="ebook"):
     body = []
 
     def done(html_body):
-        return page(t, "%s – Neknihy NextGen" % t("btn.search"), html_body, "/search",
-                    query=query, kind=kind, svc=svc)
+        return page(t, "%s – Neknihy NextGen" % t("btn.search"),
+                    header_search(t, query, kind) + html_body, "/search", svc=svc)
     try:
         res = katalog.search(query, library=s.tsk_library or "vkmr", page=page_no,
                              kind=kind)

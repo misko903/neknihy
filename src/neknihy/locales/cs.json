@@ -3,8 +3,6 @@
   "fmt.date": "%d.%m.%Y",
   "fmt.datetime": "%d.%m. %H:%M",
   "nav.loans": "Výpůjčky",
-  "nav.brand": "Úvodní obrazovka",
-  "nav.found": "Nalezené",
   "nav.more": "Další možnosti",
   "nav.settings": "Nastavení",
   "nav.language": "Jazyk",
@@ -106,5 +104,12 @@
   "due.today": "dnes",
   "due.tomorrow": "zítra",
   "due.days_few": "{n} dny",
-  "due.days_many": "{n} dní"
+  "due.days_many": "{n} dní",
+  "nav.search": "Hledat",
+  "sync.ok": "Synchronizováno",
+  "sync.running": "Synchronizuje se…",
+  "sync.error": "Chyba synchronizace",
+  "sync.last": "naposledy {time}",
+  "sync.next": "další {time}",
+  "btn.sync_now": "Synchronizovat"
 }

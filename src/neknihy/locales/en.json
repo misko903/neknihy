@@ -3,8 +3,6 @@
   "fmt.date": "%Y-%m-%d",
   "fmt.datetime": "%Y-%m-%d %H:%M",
   "nav.loans": "Loans",
-  "nav.brand": "Home",
-  "nav.found": "Found",
   "nav.more": "More options",
   "nav.settings": "Settings",
   "nav.language": "Language",
@@ -106,5 +104,12 @@
   "due.today": "today",
   "due.tomorrow": "tomorrow",
   "due.days_few": "{n} days",
-  "due.days_many": "{n} days"
+  "due.days_many": "{n} days",
+  "nav.search": "Search",
+  "sync.ok": "In sync",
+  "sync.running": "Syncing…",
+  "sync.error": "Sync failed",
+  "sync.last": "last {time}",
+  "sync.next": "next {time}",
+  "btn.sync_now": "Sync now"
 }

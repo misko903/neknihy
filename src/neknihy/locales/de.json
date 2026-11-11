@@ -3,8 +3,6 @@
   "fmt.date": "%d.%m.%Y",
   "fmt.datetime": "%d.%m. %H:%M",
   "nav.loans": "Ausleihen",
-  "nav.brand": "Startseite",
-  "nav.found": "Gefunden",
   "nav.more": "Weitere Optionen",
   "nav.settings": "Einstellungen",
   "nav.language": "Sprache",
@@ -106,5 +104,12 @@
   "due.today": "heute",
   "due.tomorrow": "morgen",
   "due.days_few": "{n} Tage",
-  "due.days_many": "{n} Tage"
+  "due.days_many": "{n} Tage",
+  "nav.search": "Suchen",
+  "sync.ok": "Abgeglichen",
+  "sync.running": "Wird abgeglichen…",
+  "sync.error": "Abgleich fehlgeschlagen",
+  "sync.last": "zuletzt {time}",
+  "sync.next": "nächster {time}",
+  "btn.sync_now": "Jetzt abgleichen"
 }
