@@ -190,6 +190,7 @@ table.loans { table-layout: fixed; }
 table.loans th:nth-child(2) { width: 110px; }
 table.loans th:nth-child(3) { width: 110px; }
 table.loans th:nth-child(4) { width: 240px; }
+table.results th:nth-child(3) { width: 200px; }
 tr.item { cursor: pointer; }
 tr.item:hover { background: var(--hover); }
 tr.item[aria-selected=true] { background: var(--sel); }

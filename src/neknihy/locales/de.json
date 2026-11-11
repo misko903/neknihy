@@ -7,11 +7,8 @@
   "nav.language": "Sprache",
   "title.settings": "Einstellungen",
   "th.book": "Buch",
-  "th.due": "Rückgabe bis",
   "th.status": "Status",
-  "th.author": "Autor",
   "th.rating": "Bewertung",
-  "th.type": "Typ",
   "status.new": "Wird beim Abgleich geladen",
   "status.pending": "Wartet auf Palmknihy",
   "status.ok": "Heruntergeladen",
@@ -118,5 +115,8 @@
   "detail.due": "Rückgabe bis",
   "detail.rating": "Bewertung",
   "detail.file": "Datei",
-  "detail.open_palm": "Auf Palmknihy öffnen"
+  "detail.open_palm": "Auf Palmknihy öffnen",
+  "detail.open_catalog": "Im Katalog öffnen",
+  "detail.published": "Ausgabe",
+  "search.title": "Im Bibliothekskatalog suchen"
 }

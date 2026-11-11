@@ -7,11 +7,8 @@
   "nav.language": "Jazyk",
   "title.settings": "Nastavenia",
   "th.book": "Kniha",
-  "th.due": "Vrátiť do",
   "th.status": "Stav",
-  "th.author": "Autor",
   "th.rating": "Hodnotenie",
-  "th.type": "Typ",
   "status.new": "Stiahne sa pri synchronizácii",
   "status.pending": "Čaká na Palmknihy",
   "status.ok": "Stiahnutá",
@@ -118,5 +115,8 @@
   "detail.due": "Vrátiť do",
   "detail.rating": "Hodnotenie",
   "detail.file": "Súbor",
-  "detail.open_palm": "Otvoriť na Palmknihy"
+  "detail.open_palm": "Otvoriť na Palmknihy",
+  "detail.open_catalog": "Otvoriť v katalógu",
+  "detail.published": "Vydanie",
+  "search.title": "Hľadať v katalógu knižnice"
 }

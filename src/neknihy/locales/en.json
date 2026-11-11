@@ -7,11 +7,8 @@
   "nav.language": "Language",
   "title.settings": "Settings",
   "th.book": "Book",
-  "th.due": "Due",
   "th.status": "Status",
-  "th.author": "Author",
   "th.rating": "Rating",
-  "th.type": "Type",
   "status.new": "Downloads on next sync",
   "status.pending": "Waiting for Palmknihy",
   "status.ok": "Downloaded",
@@ -118,5 +115,8 @@
   "detail.due": "Due",
   "detail.rating": "Rating",
   "detail.file": "File",
-  "detail.open_palm": "Open on Palmknihy"
+  "detail.open_palm": "Open on Palmknihy",
+  "detail.open_catalog": "Open in the catalogue",
+  "detail.published": "Edition",
+  "search.title": "Search the library catalogue"
 }

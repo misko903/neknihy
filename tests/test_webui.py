@@ -3,6 +3,7 @@ import sys
 import unittest
 from datetime import datetime, timezone
 from types import SimpleNamespace
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
@@ -243,6 +244,62 @@ class Detail(unittest.TestCase):
         tpl = between(html, "<template id='detail-tpl'>", "</template>")
         self.assertIn("action='/delete'", tpl)
         self.assertIn("Otvoriť na Palmknihy", tpl)
+
+
+def result(work_id, title, palm_id=None, audiobook=False, cover=""):
+    return {"work_id": work_id, "title": title, "palm_id": palm_id, "authors": ["Autor"],
+            "cover": cover, "publish_info": "Vydavateľ 2024", "ebook": True,
+            "audiobook": audiobook}
+
+
+def results(*items):
+    return {"query": "q", "kind": "ebook", "page": 1, "pages": 1, "total": len(items),
+            "results": list(items)}
+
+
+class Search(unittest.TestCase):
+    def test_search_empty_query_no_catalogue_call(self):
+        with mock.patch.object(webui.katalog, "search") as search:
+            html = webui.render_search(make_svc(), T, "", 1)
+        search.assert_not_called()
+        self.assertIn("class='bigsearch'", html)
+        self.assertIn("E-knihy", between(html, "class='bigsearch'", "</form>"))
+
+    def test_search_results_rows(self):
+        books = [loan(1, "Mam", end=soon(5), cover="https://x/cover_555.jpg")]
+        svc = make_svc(books=books)
+        found = results(result(10, "Nova", palm_id=777), result(11, "Mam", palm_id=555))
+        with mock.patch.object(webui.katalog, "search", return_value=found):
+            html = webui.render_search(svc, T, "q", 1)
+        self.assertIn("data-key='w10'", html)
+        self.assertIn("data-action='borrow'", between(html, "data-key='w10'", ">"))
+        self.assertIn("data-action='loaned'", between(html, "data-key='w11'", ">"))
+        self.assertIn("name='work' value='10'", html)
+
+    def test_search_kind_checked(self):
+        with mock.patch.object(webui.katalog, "search", return_value=results()):
+            html = webui.render_search(make_svc(), T, "q", 1, kind="audiobook")
+        self.assertIn("value='audiobook' id='kind-audiobook' checked", html)
+
+    def test_search_route_without_query(self):
+        with mock.patch.object(webui.katalog, "search") as search:
+            html = webui.search_page(make_svc(), T, "")
+        search.assert_not_called()
+        self.assertIn("class='bigsearch'", html)
+
+    def test_search_route_parses_query(self):
+        with mock.patch.object(webui.katalog, "search", return_value=results()) as search:
+            webui.search_page(make_svc(), T, "q=dune&kind=all&page=2")
+        self.assertEqual(search.call_args.args[0], "dune")
+        self.assertEqual(search.call_args.kwargs["kind"], "all")
+        self.assertEqual(search.call_args.kwargs["page"], 2)
+
+    def test_search_detail_template(self):
+        with mock.patch.object(webui.katalog, "search", return_value=results(result(1, "a"))):
+            html = webui.render_search(make_svc(), T, "q", 1)
+        tpl = between(html, "<template id='search-tpl'>", "</template>")
+        self.assertIn("action='/borrow'", tpl)
+        self.assertIn("data-eq='action:borrow'", tpl)
 
 
 if __name__ == "__main__":

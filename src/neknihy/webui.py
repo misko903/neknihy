@@ -10,7 +10,7 @@ import logging
 import os
 import re
 from datetime import datetime
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote
 
 from neknihy import i18n
 from neknihy import katalog
@@ -184,24 +184,23 @@ def esc(v):
 KIND_ICONS = {"ebook": "ebook", "audiobook": "audio", "all": "both"}
 
 
-def header_search(t, query="", kind="ebook"):
-    """Catalogue search box in the header: the e-book / audiobook / both
-    switch sits at its start (and searches again when there is a query), the
-    magnifier button at its end searches, as does Enter."""
+def search_form(t, query="", kind="ebook"):
+    """The big catalogue search box with the e-book / audiobook / all switch
+    (changing it searches again when there is a query)."""
     options = "".join(
         "<input type='radio' name='kind' value='%s' id='kind-%s'%s>"
-        "<label for='kind-%s' title='%s' aria-label='%s'>%s</label>" % (
-            k, k, " checked" if k == kind else "", k, esc(t("kind." + k)),
-            esc(t("kind." + k)), icon(KIND_ICONS[k])) for k in katalog.KINDS)
-    return ("<form method='get' action='/search' class='hsearch' role='search' "
+        "<label for='kind-%s'>%s<span>%s</span></label>" % (
+            k, k, " checked" if k == kind else "", k, icon(KIND_ICONS[k]), esc(t("kind." + k)))
+        for k in katalog.KINDS)
+    return ("<form method='get' action='/search' class='bigsearch' role='search' "
             "onchange='if(this.q.value.trim())this.submit()'>"
-            "<span class='withic'><input type='search' name='q' value='%s' required "
-            "placeholder='%s' aria-label='%s'>"
+            "<span class='withic'>%s<input type='search' name='q' value='%s' required%s "
+            "placeholder='%s' aria-label='%s'></span>"
             "<span class='seg' role='radiogroup' aria-label='%s'>%s</span>"
-            "<button class='go' title='%s' aria-label='%s'>%s</button></span></form>" % (
-                esc(query), esc(t("search.placeholder")), esc(t("btn.search")),
-                esc(t("kind.label")), options, esc(t("btn.search")),
-                esc(t("btn.search")), icon("search")))
+            "<button class='primary'>%s%s</button></form>" % (
+                icon("search"), esc(query), "" if query else " autofocus",
+                esc(t("search.placeholder")), esc(t("btn.search")),
+                esc(t("kind.label")), options, icon("search"), esc(t("btn.search"))))
 
 
 def borrow_form(svc, t):
@@ -321,14 +320,6 @@ def sort_th(label, kind="text", cls="", first="asc"):
     """Header of a sortable column (kind "text" or "num"; see app.js)."""
     return ("<th class='sort%s' data-type='%s' data-first='%s'><button type='button'>%s"
             "</button></th>" % (" " + cls if cls else "", kind, first, esc(label)))
-
-
-def kind_cell(t, audio):
-    """Cell saying whether a title is an e-book or an audiobook."""
-    label = t("kind.audio_tag" if audio else "kind.ebook_tag")
-    return ("<td data-v='%s' title='%s' aria-label='%s'><span class='kind%s'>%s</span></td>"
-            % (esc(label), esc(label), esc(label), " audio" if audio else "",
-               icon("audio" if audio else "ebook")))
 
 
 # Ways to show a list of books (see the table[data-view] CSS and app.js)
@@ -474,89 +465,136 @@ def not_configured_hint(t):
         t("borrow.not_configured", settings="\x00")).replace("\x00", link)
 
 
+def search_page(svc, t, query_string):
+    """GET /search: the query string parsed and the page rendered."""
+    q = parse_qs(query_string)
+    query = q.get("q", [""])[0].strip()[:200]
+    try:
+        page_no = max(1, int(q.get("page", ["1"])[0]))
+    except ValueError:
+        page_no = 1
+    kind = q.get("kind", ["ebook"])[0]
+    if kind not in katalog.KINDS:
+        kind = "ebook"
+    return render_search(svc, t, query, page_no, kind)
+
+
+def search_detail(t):
+    """<template> of the search result detail panel (filled in by app.js)."""
+    return ("<template id='search-tpl'>%s<dl>%s%s%s</dl><div class='dacts'>"
+            "<form method='post' action='/borrow' data-eq='action:borrow'>"
+            "<input type='hidden' name='work' data-val='work'>"
+            "<input type='hidden' name='palm_id' data-val='palm'>"
+            "<input type='hidden' name='title' data-val='title'>"
+            "<button class='primary'>%s%s</button></form>"
+            "<a class='btn' target='_blank' rel='noopener' data-href='link'>%s%s</a>"
+            "</div></template>" % (
+                detail_head(t).replace("<span class='pill' data-st='st' data-f='status'></span>",
+                                       "<span class='pill' data-st='st' data-f='status' "
+                                       "data-show='status'></span>"),
+                detail_row(t, "detail.kind", "kindlabel"),
+                detail_row(t, "detail.published", "pub", show="pub"),
+                detail_row(t, "detail.rating", "rating"),
+                icon("borrow"), esc(t("btn.borrow")), icon("link"),
+                esc(t("detail.open_catalog"))))
+
+
+def result_row(svc, t, r, action, library):
+    """One catalogue search result; ``action`` is borrow, loaned, waiting
+    or none."""
+    title = r.get("title") or str(r.get("work_id"))
+    authors = "; ".join(r.get("authors") or [])
+    audio = bool(r.get("audiobook"))
+    label = {"loaned": t("search.loaned"), "waiting": t("search.borrowed_wait")}.get(action, "")
+    st = {"loaned": "ok", "waiting": "awaiting"}.get(action, "")
+    attrs = data_attrs({
+        "key": "w%s" % r.get("work_id"), "title": title, "authors": authors,
+        "kind": "audio" if audio else "ebook",
+        "kindlabel": t("kind.audio_tag" if audio else "kind.ebook_tag"),
+        "pub": r.get("publish_info") or "", "cover": r.get("cover") or "",
+        "link": katalog.detail_url(library, r), "action": action, "work": r.get("work_id"),
+        "palm": "" if audio or r.get("palm_id") is None else r.get("palm_id"),
+        "status": label, "st": st})
+    if action == "borrow":
+        cell = ("<form method='post' action='/borrow'>"
+                "<input type='hidden' name='work' value='%s'>"
+                "<input type='hidden' name='palm_id' value='%s'>"
+                "<input type='hidden' name='title' value='%s'>"
+                "<button class='primary'>%s%s</button></form>" % (
+                    esc(r.get("work_id")),
+                    "" if audio or r.get("palm_id") is None else esc(r.get("palm_id")),
+                    esc(title), icon("borrow"), esc(t("btn.borrow"))))
+    elif label:
+        cell = status_pill(st, label)
+    else:
+        cell = ""
+    sub = "<div class='a'>%s</div>" % esc(r.get("publish_info") or "")
+    return ("<tr class='item' tabindex='0'%s>%s%s<td class='c-act'>%s</td></tr>" % (
+        attrs, book_cell(cover_html(r.get("cover"), title), title, authors, audio, sub),
+        rating_cell(svc, t, r.get("palm_id")), cell))
+
+
 def render_search(svc, t, query, page_no, kind="ebook"):
     app = svc.app
     s = app.settings
-    body = []
+    library = s.tsk_library or "vkmr"
+    head = ("<div class='head'><h1>%s</h1><div class='tools'>%s</div></div>%s" % (
+        esc(t("search.title")), view_switch(t, ["search"]), search_form(t, query, kind)))
 
-    def done(html_body):
-        return page(t, "%s – Neknihy NextGen" % t("btn.search"),
-                    header_search(t, query, kind) + html_body, "/search", svc=svc)
+    def done(html_body, detail=""):
+        title = "%s – Neknihy NextGen" % t("btn.search")
+        return page(t, title, head + html_body, "/search", svc=svc, detail=detail)
+    if not query:
+        return done("")
     try:
-        res = katalog.search(query, library=s.tsk_library or "vkmr", page=page_no,
-                             kind=kind)
+        res = katalog.search(query, library=library, page=page_no, kind=kind)
     except Exception as e:
         log.error("Catalogue search failed: %s", e)
-        body.append("<div class='card'><p class='st st-pending'>%s%s</p></div>" % (
+        return done("<p class='st st-expired'>%s%s</p>" % (
             icon("warn"), esc(t("search.error", error=e))))
-        return done("".join(body))
 
-    active = [b for b in app.books if b.get("neknihy", {}).get("status") != "expired"]
+    active = [b for b in app.books
+              if (b.get("neknihy") or {}).get("status") not in ("expired", "deleted")]
     # the catalogue links to palmknihy.cz/kniha/<id>, which is often not the
     # loan's palm_id (see catalogueIds); audiobooks are matched by title too
     loaned = set().union(*(catalogueIds(b) for b in active))
     loaned_audio = {(b.get("title") or "").strip().lower() for b in active if isAudiobook(b)}
-    library = s.tsk_library or "vkmr"
     borrow_here = katalog.can_borrow(library)
     can_borrow = borrow_here and s.katalog_configured()
     waiting = {aw["work_id"] for aw in svc.awaiting}
     rows = []
     for r in res["results"]:
         if r["work_id"] in waiting:
-            action = "<span class='st st-pending'>%s%s</span>" % (
-                icon("pending"), esc(t("search.borrowed_wait")))
-        elif ((r["palm_id"] is not None and r["palm_id"] in loaned) or
-              (r.get("audiobook") and r["title"].strip().lower() in loaned_audio)):
-            action = "<span class='st st-ok'>%s%s</span>" % (icon("ok"), esc(t("search.loaned")))
-        elif r["ebook"] and can_borrow:
-            action = ("<form method='post' action='/borrow'>"
-                      "<input type='hidden' name='work' value='%d'>"
-                      "<input type='hidden' name='palm_id' value='%s'>"
-                      "<input type='hidden' name='title' value='%s'>"
-                      "<button class='primary' title='%s'>%s<span>%s</span></button></form>"
-                      % (r["work_id"],
-                         "" if r.get("audiobook") else esc(r["palm_id"]),
-                         esc(r["title"]),
-                         esc(t("btn.borrow")), icon("borrow"),
-                         esc(t("btn.borrow"))))
+            action = "waiting"
+        elif ((r.get("palm_id") is not None and r["palm_id"] in loaned) or
+              (r.get("audiobook") and (r.get("title") or "").strip().lower() in loaned_audio)):
+            action = "loaned"
+        elif r.get("ebook") and can_borrow:
+            action = "borrow"
         else:
-            action = ""
-        cover = ("<img src='%s' alt='' loading='lazy' class='cover'>" % esc(r["cover"])
-                 if r["cover"] else "")
-        authors = "; ".join(r["authors"])
-        rows.append(
-            "<tr><td class='hide-sm c-cover'>%s</td><td class='c-title' data-v='%s'>"
-            "<a href='%s' target='_blank' rel='noopener'>%s</a>"
-            "<div class='mut pub'>%s</div></td>%s"
-            "<td class='hide-sm c-auth' data-v='%s'>%s</td>%s<td class='c-act'>%s</td></tr>" % (
-                cover, esc(r["title"]), esc(katalog.detail_url(library, r)),
-                esc(r["title"] or r["work_id"]), esc(r["publish_info"]),
-                kind_cell(t, r.get("audiobook")),
-                esc(authors), esc(authors), rating_cell(svc, t, r["palm_id"]), action))
+            action = "none"
+        rows.append(result_row(svc, t, r, action, library))
     if rows:
-        table = ("<p class='mut'>%s</p>%s<table class='sortable' id='search' data-view='details' %s>"
-                 "<thead><tr><th class='hide-sm c-cover'></th>%s%s%s%s<th></th></tr></thead><tbody>%s</tbody>"
-                 "</table>%s" % (
-                     esc(t("search.results_" + res["kind"], n=res["total"])),
-                     filter_box(t, "search"), rating_attrs(t),
-                     sort_th(t("th.book")), sort_th(t("th.type")),
-                     sort_th(t("th.author"), cls="hide-sm"),
-                     sort_th(t("th.rating"), "num", first="desc"), "".join(rows), ""))
+        body = ("<p class='mut'>%s</p><table class='sortable loans results' id='search' "
+                "data-view='list' %s><thead><tr>%s%s<th></th></tr></thead><tbody>%s</tbody>"
+                "</table>" % (
+                    esc(t("search.results_" + res["kind"], n=res["total"])), rating_attrs(t),
+                    sort_th(t("th.book")), sort_th(t("th.rating"), "num", first="desc"),
+                    "".join(rows)))
     else:
-        table = "<p class='mut empty'>%s%s</p>" % (icon("empty"), esc(t("search.none")))
+        body = "<div class='empty'>%s<p>%s</p></div>" % (icon("empty"), esc(t("search.none")))
     if res["pages"] > 1:
         links = []
         for n in range(1, res["pages"] + 1):
             links.append("<b>%d</b>" % n if n == page_no else
                          "<a href='/search?q=%s&amp;kind=%s&amp;page=%d'>%d</a>"
                          % (quote(query), quote(res["kind"]), n, n))
-        table += "<p class='actions'>%s</p>" % " ".join(links)
+        body += "<p class='pages'>%s</p>" % " ".join(links)
     if not borrow_here:
-        table += "<p class='mut'>%s</p>" % esc(t("borrow.unsupported"))
+        body += "<p class='mut'>%s</p>" % esc(t("borrow.unsupported"))
     elif not can_borrow:
-        table += not_configured_hint(t)
-    body.append("<div class='card'>%s</div>" % table)
-    return done("".join(body))
+        body += not_configured_hint(t)
+    return done(body, search_detail(t) if rows else "")
 
 
 def detail_head(t):

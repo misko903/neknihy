@@ -42,12 +42,11 @@ from urllib.parse import parse_qs, urlparse
 from neknihy import i18n
 from neknihy.api import catalogueIds, isAudiobook
 from neknihy.app import App
-from neknihy import katalog
 from neknihy.katalog import parse_work_id
 from neknihy.rating import MAX_IDS, Ratings
 from neknihy_cli import env, run_once, sync
 from neknihy.webui import (AUDIOBOOKSHELF_DIRS, STATIC, STATIC_DIR, WAIT_STEP, esc, page,
-                           render_index, render_log, render_search, render_settings)
+                           render_index, render_log, render_settings, search_page)
 
 log = logging.getLogger("neknihy")
 
@@ -491,19 +490,7 @@ def make_handler(svc):
                 choice = self._lang_cookie() or ("auto" if not DEFAULT_LANG else DEFAULT_LANG)
                 self._send(render_settings(svc, t, choice))
             elif path == "/search":
-                q = parse_qs(url.query)
-                query = q.get("q", [""])[0].strip()
-                try:
-                    page_no = max(1, int(q.get("page", ["1"])[0]))
-                except ValueError:
-                    page_no = 1
-                kind = q.get("kind", ["ebook"])[0]
-                if kind not in katalog.KINDS:
-                    kind = "ebook"
-                if query:
-                    self._send(render_search(svc, t, query[:200], page_no, kind))
-                else:
-                    self._redirect("/")
+                self._send(search_page(svc, t, url.query))
             elif path == "/ratings":
                 raw = parse_qs(url.query).get("ids", [""])[0]
                 ids = [int(i) for i in raw.split(",") if i.strip().isdigit()][:MAX_IDS]
