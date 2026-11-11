@@ -325,5 +325,29 @@ class SettingsAndLog(unittest.TestCase):
         self.assertNotIn("class='mut status'", html)
 
 
+class ReviewFixes(unittest.TestCase):
+    def test_search_deleted_loan_still_counts_as_loaned(self):
+        books = [loan(1, "Mam", "deleted", end=soon(5), cover="https://x/cover_555.jpg")]
+        found = results(result(11, "Mam", palm_id=555))
+        with mock.patch.object(webui.katalog, "search", return_value=found):
+            html = webui.render_search(make_svc(books=books), T, "q", 1)
+        self.assertIn("data-action='loaned'", between(html, "data-key='w11'", ">"))
+
+    def test_refresh_done_by_script_with_noscript_fallback(self):
+        html = webui.render_index(make_svc(running=True), T)
+        head = between(html, "<head>", "</head>")
+        self.assertIn("<meta name='nk-refresh' content='%d'>" % webui.PAGE_REFRESH, head)
+        self.assertIn("<noscript><meta http-equiv='refresh'", head)
+        self.assertNotIn("http-equiv='refresh'", head.replace(
+            between(head, "<noscript>", "</noscript>"), ""))
+
+    def test_expired_detail_shows_date_without_negative_days(self):
+        html = webui.render_index(make_svc(books=[loan(1, "Stara", "expired", end=soon(-10))]), T)
+        due = re.search(r"data-due='([^']*)'", html).group(1)
+        self.assertTrue(due[:1].isdigit())
+        self.assertNotIn("-", due)
+        self.assertNotIn("·", due)
+
+
 if __name__ == "__main__":
     unittest.main()

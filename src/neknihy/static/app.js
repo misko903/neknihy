@@ -236,3 +236,9 @@ document.querySelectorAll('[data-view-for]').forEach(function (seg) {
     if (row) show(row);
   }
 })();
+
+// --- reload while something is going on (keeps the #book of the open detail) ---
+(function () {
+  var m = document.querySelector('meta[name="nk-refresh"]');
+  if (m) setTimeout(function () { location.reload(); }, (+m.content || 10) * 1000);
+})();

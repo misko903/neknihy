@@ -281,7 +281,10 @@ def sidebar(svc, t, path):
 def page(t, title, body, path="/", refresh=None, svc=None, detail=""):
     """The whole page: sidebar, content and, when ``detail`` (the panel's
     <template>) is given, the detail panel app.js fills from a list item."""
-    meta = "<meta http-equiv='refresh' content='%d'>" % refresh if refresh else ""
+    # app.js reloads the page (a declarative refresh to a URL with the #book
+    # fragment would be a same-document navigation in some browsers)
+    meta = ("<meta name='nk-refresh' content='%d'><noscript><meta http-equiv='refresh' "
+            "content='%d'></noscript>" % (refresh, refresh) if refresh else "")
     return ("<!doctype html><html lang='%s'><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width,initial-scale=1'>%s"
             "<title>%s</title><link rel='icon' type='image/png' href='/favicon.png?v=%s'>"
@@ -396,7 +399,7 @@ def loan_row(svc, t, book, now):
         "key": loan_key(book), "title": title, "authors": authors,
         "kind": "audio" if audio else "ebook",
         "kindlabel": t("kind.audio_tag" if audio else "kind.ebook_tag"),
-        "due": "%s · %s" % (date, due_text(t, days)) if date else "–",
+        "due": ("%s · %s" % (date, due_text(t, days)) if days >= 0 else date) if date else "–",
         "status": label, "st": st, "file": (book.get("neknihy") or {}).get("filename", ""),
         "cover": src if str(src).startswith("https://") else "",
         "link": "https://www.palmknihy.cz/kniha/%s" % wid if wid else "",
@@ -553,8 +556,8 @@ def render_search(svc, t, query, page_no, kind="ebook"):
         return done("<p class='st st-expired'>%s%s</p>" % (
             icon("warn"), esc(t("search.error", error=e))))
 
-    active = [b for b in app.books
-              if (b.get("neknihy") or {}).get("status") not in ("expired", "deleted")]
+    # a deleted loan has no file any more but is still on loan at Palmknihy
+    active = [b for b in app.books if (b.get("neknihy") or {}).get("status") != "expired"]
     # the catalogue links to palmknihy.cz/kniha/<id>, which is often not the
     # loan's palm_id (see catalogueIds); audiobooks are matched by title too
     loaned = set().union(*(catalogueIds(b) for b in active))
