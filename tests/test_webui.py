@@ -236,5 +236,14 @@ class Loans(unittest.TestCase):
         self.assertLess(html.index(">S<"), html.index(">Bez<"))
 
 
+class Detail(unittest.TestCase):
+    def test_detail_template_present(self):
+        html = webui.render_index(make_svc(books=[loan(1, "a", end=soon(5))]), T)
+        self.assertIn("id='detail'", html)
+        tpl = between(html, "<template id='detail-tpl'>", "</template>")
+        self.assertIn("action='/delete'", tpl)
+        self.assertIn("Otvoriť na Palmknihy", tpl)
+
+
 if __name__ == "__main__":
     unittest.main()

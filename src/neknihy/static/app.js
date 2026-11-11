@@ -159,3 +159,80 @@ document.querySelectorAll('[data-view-for]').forEach(function (seg) {
     })();
   });
 })();
+
+// --- detail panel: filled from the clicked item's data-* attributes ---
+// In the template, data-f="x" gets the text of data-x, data-src / data-href /
+// data-val set src / href / value (hidden when empty), data-st sets the pill
+// colour, data-show="x" hides an element when data-x is empty and data-eq="x:v"
+// shows it only when data-x is v. The open item is kept in the URL hash, so the
+// auto-refresh while syncing opens it again.
+(function () {
+  var panel = document.getElementById('detail'), tpl = document.querySelector('template[id$="-tpl"]');
+  if (!panel || !tpl) return;
+  var shell = document.querySelector('.shell'), open = null;
+  function rating(row) {
+    var td = row.querySelector('td.rt');
+    return td ? td.textContent.trim() : '';
+  }
+  function fill(row) {
+    var d = row.dataset, n = tpl.content.cloneNode(true);
+    d.rating = rating(row);
+    n.querySelectorAll('[data-f]').forEach(function (e) { e.textContent = d[e.getAttribute('data-f')] || '–'; });
+    n.querySelectorAll('[data-src]').forEach(function (e) {
+      var v = d[e.getAttribute('data-src')];
+      if (v) e.src = v; else e.hidden = true;
+    });
+    n.querySelectorAll('[data-href]').forEach(function (e) {
+      var v = d[e.getAttribute('data-href')];
+      if (v) e.href = v; else e.hidden = true;
+    });
+    n.querySelectorAll('[data-val]').forEach(function (e) { e.value = d[e.getAttribute('data-val')] || ''; });
+    n.querySelectorAll('[data-st]').forEach(function (e) { e.classList.add('st-' + (d[e.getAttribute('data-st')] || '')); });
+    n.querySelectorAll('[data-show]').forEach(function (e) { if (!d[e.getAttribute('data-show')]) e.hidden = true; });
+    n.querySelectorAll('[data-eq]').forEach(function (e) {
+      var p = e.getAttribute('data-eq').split(':');
+      if (d[p[0]] !== p[1]) e.hidden = true;
+    });
+    n.querySelectorAll('[data-confirm-tpl]').forEach(function (e) {
+      e.setAttribute('data-confirm', e.getAttribute('data-confirm-tpl').replace('{title}', d.title || ''));
+    });
+    panel.textContent = '';
+    panel.appendChild(n);
+  }
+  function show(row) {
+    if (open) open.removeAttribute('aria-selected');
+    open = row;
+    row.setAttribute('aria-selected', 'true');
+    fill(row);
+    panel.hidden = false;
+    shell.classList.add('has-detail');
+    history.replaceState(null, '', '#kniha-' + row.getAttribute('data-key'));
+  }
+  function hide() {
+    if (open) { open.removeAttribute('aria-selected'); open.focus(); }
+    open = null;
+    panel.hidden = true;
+    shell.classList.remove('has-detail');
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-close]')) { hide(); return; }
+    var row = e.target.closest('tr.item');
+    if (!row || e.target.closest('a, button, form, input')) return;
+    row === open ? hide() : show(row);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && open) { hide(); return; }
+    var row = e.target.closest && e.target.closest('tr.item');
+    if (row && (e.key === 'Enter' || e.key === ' ') && e.target === row) {
+      e.preventDefault();
+      show(row);
+    }
+  });
+  document.addEventListener('nk-ratings', function () { if (open) fill(open); });
+  var m = /^#kniha-(.+)$/.exec(location.hash);
+  if (m) {
+    var row = document.querySelector('tr.item[data-key="' + CSS.escape(decodeURIComponent(m[1])) + '"]');
+    if (row) show(row);
+  }
+})();

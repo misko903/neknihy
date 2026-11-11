@@ -112,5 +112,11 @@
   "loans.expired_title": "Abgelaufen · werden beim nächsten Abgleich vom Reader gelöscht",
   "loans.empty": "Sie haben noch keine Ausleihen.",
   "loans.empty_link": "Buch finden",
-  "nav.actions": "Weitere Aktionen"
+  "nav.actions": "Weitere Aktionen",
+  "detail.close": "Schließen",
+  "detail.kind": "Art",
+  "detail.due": "Rückgabe bis",
+  "detail.rating": "Bewertung",
+  "detail.file": "Datei",
+  "detail.open_palm": "Auf Palmknihy öffnen"
 }

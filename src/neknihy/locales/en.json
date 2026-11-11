@@ -112,5 +112,11 @@
   "loans.expired_title": "Expired · removed from the reader on the next sync",
   "loans.empty": "You have no loans yet.",
   "loans.empty_link": "Find a book",
-  "nav.actions": "More actions"
+  "nav.actions": "More actions",
+  "detail.close": "Close",
+  "detail.kind": "Type",
+  "detail.due": "Due",
+  "detail.rating": "Rating",
+  "detail.file": "File",
+  "detail.open_palm": "Open on Palmknihy"
 }

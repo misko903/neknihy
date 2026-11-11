@@ -66,6 +66,9 @@ _ICON_PATHS = {
     "auto": "<circle cx='12' cy='12' r='9'/><path d='M12 3a9 9 0 0 1 0 18z' fill='currentColor'/>",
     "moon": "<path d='M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z'/>",
     "expired": "<circle cx='12' cy='12' r='9'/><path d='m9 9 6 6'/><path d='m15 9-6 6'/>",
+    "close": "<path d='M6 6l12 12'/><path d='M18 6 6 18'/>",
+    "link": "<path d='M14 4h6v6'/><path d='M20 4 10 14'/><path d='M18 14v5a1 1 0 0 1-1 1H5a1 "
+            "1 0 0 1-1-1V7a1 1 0 0 1 1-1h5'/>",
     "info": "<circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><path d='M12 8h0'/>",
     "warn": "<path d='M12 3 2 20h20z'/><path d='M12 10v4'/><path d='M12 17h0'/>",
     "log": "<path d='M4 6h16'/><path d='M4 12h16'/><path d='M4 18h10'/>",
@@ -276,7 +279,9 @@ def sidebar(svc, t, path):
                 esc(t("log.title")), theme))
 
 
-def page(t, title, body, path="/", refresh=None, svc=None, detail=False):
+def page(t, title, body, path="/", refresh=None, svc=None, detail=""):
+    """The whole page: sidebar, content and, when ``detail`` (the panel's
+    <template>) is given, the detail panel app.js fills from a list item."""
     meta = "<meta http-equiv='refresh' content='%d'>" % refresh if refresh else ""
     return ("<!doctype html><html lang='%s'><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width,initial-scale=1'>%s"
@@ -287,7 +292,7 @@ def page(t, title, body, path="/", refresh=None, svc=None, detail=False):
             "<script src='/app.js?v=%s'></script></body></html>"
             % (t.lang, meta, esc(title), STATIC_VER, STATIC_VER, STATIC_VER, THEME_JS,
                sidebar(svc, t, path) if svc else "", body,
-               "<aside id='detail' class='detail' hidden></aside>" if detail else "",
+               "<aside id='detail' class='detail' hidden>%s</aside>" % detail if detail else "",
                STATIC_VER))
 
 
@@ -398,7 +403,9 @@ def loan_row(svc, t, book, now):
     shown = date if st == "expired" and days is not None else due_text(t, days)
     attrs = data_attrs({
         "key": loan_key(book), "title": title, "authors": authors,
-        "kind": "audio" if audio else "ebook", "due": date, "days": due_text(t, days),
+        "kind": "audio" if audio else "ebook",
+        "kindlabel": t("kind.audio_tag" if audio else "kind.ebook_tag"),
+        "due": "%s · %s" % (date, due_text(t, days)) if date else "–",
         "status": label, "st": st, "file": (book.get("neknihy") or {}).get("filename", ""),
         "cover": src if str(src).startswith("https://") else "",
         "link": "https://www.palmknihy.cz/kniha/%s" % wid if wid else "",
@@ -552,6 +559,36 @@ def render_search(svc, t, query, page_no, kind="ebook"):
     return done("".join(body))
 
 
+def detail_head(t):
+    """Top of a detail panel: close button, cover, title, authors, status."""
+    return ("<button type='button' class='close' data-close title='%s' aria-label='%s'>%s</button>"
+            "<img class='dcover' alt='' data-src='cover'>"
+            "<h2 data-f='title'></h2><p class='dauth' data-f='authors'></p>"
+            "<span class='pill' data-st='st' data-f='status'></span>" % (
+                esc(t("detail.close")), esc(t("detail.close")), icon("close")))
+
+
+def detail_row(t, key, field, show=None):
+    """A label / value pair; ``show`` hides it when that field is empty."""
+    cond = " data-show='%s'" % show if show else ""
+    return "<dt%s>%s</dt><dd%s data-f='%s'></dd>" % (cond, esc(t(key)), cond, field)
+
+
+def loan_detail(t):
+    """<template> of the loan detail panel (filled in by app.js)."""
+    return ("<template id='detail-tpl'>%s<dl>%s%s%s%s</dl><div class='dacts'>"
+            "<a class='btn' target='_blank' rel='noopener' data-href='link'>%s%s</a>"
+            "<form method='post' action='/delete' class='del' data-confirm-tpl='%s'>"
+            "<input type='hidden' name='palm_id' data-val='palm'>"
+            "<input type='hidden' name='audio' data-val='audio'>"
+            "<button class='danger'>%s%s</button></form></div></template>" % (
+                detail_head(t), detail_row(t, "detail.kind", "kindlabel"),
+                detail_row(t, "detail.due", "due"), detail_row(t, "detail.rating", "rating"),
+                detail_row(t, "detail.file", "file", show="file"), icon("link"),
+                esc(t("detail.open_palm")), esc(t("delete.confirm", title="{title}")),
+                icon("delete"), esc(t("btn.delete"))))
+
+
 def render_index(svc, t):
     app = svc.app
     now = local_now()
@@ -577,7 +614,7 @@ def render_index(svc, t):
                 loans_table(t, "expired", [loan_row(svc, t, b, now) for b in expired])))
     busy = svc.running or svc.awaiting
     return page(t, "Neknihy NextGen", body, "/", refresh=PAGE_REFRESH if busy else None,
-                svc=svc, detail=True)
+                svc=svc, detail=loan_detail(t))
 
 
 def run_status(svc, t):

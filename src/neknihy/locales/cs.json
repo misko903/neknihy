@@ -112,5 +112,11 @@
   "loans.expired_title": "Propadlé · při synchronizaci se smažou ze čtečky",
   "loans.empty": "Zatím nemáte žádné výpůjčky.",
   "loans.empty_link": "Najít knihu",
-  "nav.actions": "Další akce"
+  "nav.actions": "Další akce",
+  "detail.close": "Zavřít",
+  "detail.kind": "Druh",
+  "detail.due": "Vrátit do",
+  "detail.rating": "Hodnocení",
+  "detail.file": "Soubor",
+  "detail.open_palm": "Otevřít na Palmknihy"
 }
