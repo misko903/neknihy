@@ -16,10 +16,10 @@
   "th.author": "Autor",
   "th.rating": "Hodnotenie",
   "th.type": "Typ",
-  "status.new": "nová",
-  "status.pending": "čaká na sprístupnenie",
-  "status.ok": "stiahnutá",
-  "status.expired": "prepadnutá",
+  "status.new": "Stiahne sa pri synchronizácii",
+  "status.pending": "Čaká na Palmknihy",
+  "status.ok": "Stiahnutá",
+  "status.expired": "Prepadnutá",
   "empty": "Žiadne výpožičky. Skúste „Obnoviť“.",
   "not_configured": "Nie je nastavené",
   "not_configured.hint": "vyplňte {settings}.",
@@ -101,5 +101,10 @@
   "set.sec_account": "Účet Palmknihy",
   "set.sec_folders": "Priečinky",
   "set.sec_auto": "Automatický beh",
-  "set.sec_convert": "Prevod na .mobi"
+  "set.sec_convert": "Prevod na .mobi",
+  "status.awaiting": "Požičiava sa…",
+  "due.today": "dnes",
+  "due.tomorrow": "zajtra",
+  "due.days_few": "{n} dni",
+  "due.days_many": "{n} dní"
 }

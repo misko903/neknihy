@@ -16,10 +16,10 @@
   "th.author": "Author",
   "th.rating": "Rating",
   "th.type": "Type",
-  "status.new": "new",
-  "status.pending": "waiting to become available",
-  "status.ok": "downloaded",
-  "status.expired": "expired",
+  "status.new": "Downloads on next sync",
+  "status.pending": "Waiting for Palmknihy",
+  "status.ok": "Downloaded",
+  "status.expired": "Expired",
   "empty": "No loans. Try “Refresh”.",
   "not_configured": "Not configured",
   "not_configured.hint": "fill in the {settings}.",
@@ -101,5 +101,10 @@
   "set.sec_account": "Palmknihy account",
   "set.sec_folders": "Folders",
   "set.sec_auto": "Automatic run",
-  "set.sec_convert": "Conversion to .mobi"
+  "set.sec_convert": "Conversion to .mobi",
+  "status.awaiting": "Borrowing…",
+  "due.today": "today",
+  "due.tomorrow": "tomorrow",
+  "due.days_few": "{n} days",
+  "due.days_many": "{n} days"
 }

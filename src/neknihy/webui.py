@@ -8,6 +8,7 @@ import hashlib
 import html
 import logging
 import os
+import re
 from datetime import datetime
 from urllib.parse import quote
 
@@ -109,6 +110,68 @@ def _static_version():
 
 
 STATIC_VER = _static_version()
+
+
+# --- loans: deadlines, statuses, grouping -----------------------------------
+
+DATE_RE = re.compile(r"^\d{4}-?\d{2}-?\d{2}")
+SOON_DAYS = 3  # this many days left or fewer is shown as urgent
+
+
+def days_left(end_time, now, parse):
+    """Whole calendar days from ``now`` to the deadline (0 = today, negative
+    = past) in ``now``'s time zone, or None when there is no usable date.
+    ``parse`` is App.dateFromString, which returns "now" for junk, so the
+    text is checked to look like a date first."""
+    if not end_time or not DATE_RE.match(str(end_time)):
+        return None
+    try:
+        end = parse(end_time)
+        if end.tzinfo is None:
+            end = end.astimezone()  # naive = local time
+        return (end.astimezone(now.tzinfo).date() - now.date()).days
+    except Exception:
+        return None
+
+
+def due_text(t, days):
+    """"dnes", "zajtra", "3 dni", "7 dní"; "–" when unknown."""
+    if days is None:
+        return "–"
+    if days == 0:
+        return t("due.today")
+    if days == 1:
+        return t("due.tomorrow")
+    return t("due.days_few" if 2 <= abs(days) <= 4 else "due.days_many", n=days)
+
+
+def is_soon(days):
+    return days is not None and 0 <= days <= SOON_DAYS
+
+
+def status_key(book):
+    st = (book.get("neknihy") or {}).get("status", "")
+    return st if st in STATUSES else "other"
+
+
+def split_loans(books, now, parse):
+    """(active, expired) without deleted loans; the active ones by deadline,
+    those without a deadline last."""
+    active, expired = [], []
+    for b in books:
+        st = (b.get("neknihy") or {}).get("status", "")
+        if st == "deleted":
+            continue
+        (expired if st == "expired" else active).append(b)
+    far = float("inf")
+    active.sort(key=lambda b: (lambda d: far if d is None else d)(
+        days_left(b.get("end_time"), now, parse)))
+    return active, expired
+
+
+def loan_key(book):
+    """Unique key of a loan; e-books and audiobooks can share a palm_id."""
+    return "%s-%s" % (book.get("palm_id", ""), "a" if isAudiobook(book) else "e")
 
 
 def esc(v):

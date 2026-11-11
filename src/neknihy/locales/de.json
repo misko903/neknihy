@@ -16,10 +16,10 @@
   "th.author": "Autor",
   "th.rating": "Bewertung",
   "th.type": "Typ",
-  "status.new": "neu",
-  "status.pending": "wartet auf Freigabe",
-  "status.ok": "heruntergeladen",
-  "status.expired": "abgelaufen",
+  "status.new": "Wird beim Abgleich geladen",
+  "status.pending": "Wartet auf Palmknihy",
+  "status.ok": "Heruntergeladen",
+  "status.expired": "Abgelaufen",
   "empty": "Keine Ausleihen. Versuchen Sie „Aktualisieren“.",
   "not_configured": "Nicht eingerichtet",
   "not_configured.hint": "bitte die {settings} ausfüllen.",
@@ -101,5 +101,10 @@
   "set.sec_account": "Palmknihy-Konto",
   "set.sec_folders": "Ordner",
   "set.sec_auto": "Automatischer Lauf",
-  "set.sec_convert": "Umwandlung in .mobi"
+  "set.sec_convert": "Umwandlung in .mobi",
+  "status.awaiting": "Wird ausgeliehen…",
+  "due.today": "heute",
+  "due.tomorrow": "morgen",
+  "due.days_few": "{n} Tage",
+  "due.days_many": "{n} Tage"
 }
