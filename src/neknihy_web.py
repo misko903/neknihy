@@ -176,6 +176,7 @@ class Service:
                 tsk_password=tsk_password if tsk_password else s.tsk_password,
                 tsk_library=form.get("tsk_library", "").strip().lower() or "vkmr",
                 audiodir=form.get("audiodir", "").strip(),
+                remove_drm="1" if form.get("remove_drm") else "0",
             )
             try:
                 interval = max(0, int(form.get("interval_h", "6") or 0) * 3600)

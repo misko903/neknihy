@@ -727,7 +727,8 @@ def render_settings(svc, t, lang_choice="auto"):
                + field("set.audiodir",
                        text("audiodir", s.audiodir,
                             extra=" placeholder='%s'" % esc(AUDIOBOOKSHELF_DIRS[0])),
-                       "set.audiodir_hint"))
+                       "set.audiodir_hint")
+               + check("remove_drm", s.remove_drm == "1", "set.remove_drm"))
     auto = (field("set.interval",
                   text("interval_h", svc.web["interval"] // 3600, "number", " min='0'"),
                   "set.interval_hint")

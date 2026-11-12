@@ -1,5 +1,6 @@
 from neknihy import katalog
 from neknihy.api import API, catalogueIds, isAudiobook, webId
+from neknihy.epub import remove_social_drm
 from neknihy.katalog import KatalogTSK
 from neknihy.settings import Settings
 
@@ -366,6 +367,20 @@ class App():
             book["neknihy"]["dir"] = root
             return
         self.api.downloadBook(self.settings.workdir, book)
+        self.removeDrmPage(book)
+
+    def removeDrmPage(self, book):
+        """Drop the social DRM page from a freshly downloaded EPUB (if enabled).
+        A book that cannot be cleaned is kept as downloaded."""
+        nk = book.get("neknihy") or {}
+        filename = nk.get("filename") or ""
+        if (self.settings.remove_drm != "1" or nk.get("status") != "ok"
+                or not filename.lower().endswith(".epub")):
+            return
+        try:
+            remove_social_drm(os.path.join(self.settings.workdir, filename))
+        except Exception as e:
+            log.warning("Cannot remove social DRM page from %s: %s", filename, e)
 
     def downloadBooks(self):
         if not self.settings.configured():

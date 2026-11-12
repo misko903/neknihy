@@ -63,6 +63,7 @@
   "search.error": "Catalogue search failed: {error}",
   "log.title": "Log",
   "set.lang_auto": "Automatic (browser language)",
+  "set.remove_drm": "Remove the social DRM page from EPUBs after download",
   "set.ingest": "Sync folder is a Calibre-Web ingest folder (copy each book only once)",
   "await.title": "Borrowed: {title}",
   "await.borrowing": "Borrowing in the library catalogue…",

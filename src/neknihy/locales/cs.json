@@ -63,6 +63,7 @@
   "search.error": "Hledání v katalogu selhalo: {error}",
   "log.title": "Záznamy",
   "set.lang_auto": "Automaticky (podle prohlížeče)",
+  "set.remove_drm": "Po stažení odstranit z EPUB stránku se sociálním DRM",
   "set.ingest": "Složka pro synchronizaci je ingest složka Calibre-Web (každou knihu zkopírovat jen jednou)",
   "await.title": "Vypůjčeno: {title}",
   "await.borrowing": "Půjčuji v katalogu knihovny…",

@@ -98,6 +98,15 @@ class Settings():
         return self._set_attr("convertor", value)
 
     @property
+    def remove_drm(self):
+        """"1" = remove the social DRM page from downloaded EPUBs."""
+        return self._get_attr("remove_drm")
+
+    @remove_drm.setter
+    def remove_drm(self, value):
+        return self._set_attr("remove_drm", value)
+
+    @property
     def tsk_username(self):
         return self._get_attr("tsk_username")
 
@@ -131,6 +140,8 @@ class Settings():
         self.audiodir = config.get("settings", "audiodir", fallback="")
         self.convert = config.get("settings", "convert", fallback="0")
         self.convertor = config.get("settings", "convertor", fallback="ebook-convert")
+        # on by default, also for configs from before the option existed
+        self.remove_drm = config.get("settings", "remove_drm", fallback="1")
         self.tsk_username = config.get("settings", "tsk_username", fallback="")
         self.tsk_password = config.get("settings", "tsk_password", fallback="")
         self.tsk_library = config.get("settings", "tsk_library", fallback="vkmr")
@@ -153,7 +164,7 @@ class Settings():
     def update(self, email=None, password=None, workdir=None,
                readerdir=None, convert=None, convertor=None,
                tsk_username=None, tsk_password=None, tsk_library=None,
-               audiodir=None):
+               audiodir=None, remove_drm=None):
         if email is not None:
             self.email = email
         if password is not None:
@@ -174,6 +185,8 @@ class Settings():
             self.tsk_library = tsk_library
         if audiodir is not None:
             self.audiodir = audiodir
+        if remove_drm is not None:
+            self.remove_drm = remove_drm
         self.save()
 
     def configured(self):

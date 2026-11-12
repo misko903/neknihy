@@ -13,6 +13,8 @@ požičiavajú cez Palmknihy:
 - stiahne vypožičané e-knihy aj audioknihy a synchronizuje ich s čítačkou
   alebo s ingest priečinkom Calibre-Web,
 - audioknihy ukladá ako `Autor/Názov`, takže sa hodia pre Audiobookshelf,
+- z EPUB po stiahnutí odstráni stranu so sociálnym DRM (meno a číslo
+  transakcie); dá sa vypnúť v Nastaveniach, v CLI cez `NEKNIHY_REMOVE_DRM=0`,
 - vyhľadá a vypožičia knihy priamo z katalógu knižnice (katalog.tsk.sk),
 - výpožičky vracia jedným tlačidlom a prepadnuté knihy zmaže aj z čítačky,
 - beží ako desktopová aplikácia alebo v Dockeri (napr. na NAS)
