@@ -63,6 +63,7 @@
   "search.error": "Vyhľadávanie v katalógu zlyhalo: {error}",
   "log.title": "Záznamy",
   "set.lang_auto": "Automaticky (podľa prehliadača)",
+  "set.remove_drm": "Po stiahnutí odstrániť z EPUB stranu so sociálnym DRM",
   "set.ingest": "Priečinok na synchronizáciu je ingest priečinok Calibre-Web (každú knihu skopírovať iba raz)",
   "await.title": "Požičaná: {title}",
   "await.borrowing": "Požičiavam v katalógu knižnice…",

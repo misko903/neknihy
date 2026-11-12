@@ -11,6 +11,7 @@ without a GUI and without a config file:
                        (e-reader, Calibre-Web ingest folder, ...)
     NEKNIHY_CONVERT    "1" = convert .epub to .mobi when syncing (needs Calibre)
     NEKNIHY_CONVERTOR  Path to ebook-convert (default ebook-convert)
+    NEKNIHY_REMOVE_DRM "1" = remove the social DRM page from EPUBs (default 1)
     NEKNIHY_INTERVAL   Seconds between runs (default 21600 = 6 h); 0 = run once
     NEKNIHY_AUTO_RETURN "1" = delete files of expired loans (default 1)
     NEKNIHY_INGEST     "1" = READERDIR is an ingest folder (Calibre-Web
@@ -60,6 +61,7 @@ def build_app(args):
     s.audiodir = env("NEKNIHY_AUDIODIR")
     s.convert = env("NEKNIHY_CONVERT", "0")
     s.convertor = env("NEKNIHY_CONVERTOR", "ebook-convert")
+    s.remove_drm = env("NEKNIHY_REMOVE_DRM", "1")
     s.tsk_username = env("NEKNIHY_TSK_USERNAME")
     s.tsk_password = env("NEKNIHY_TSK_PASSWORD")
     s.tsk_library = env("NEKNIHY_TSK_LIBRARY", "vkmr")

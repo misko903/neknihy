@@ -28,7 +28,7 @@ def make_svc(books=(), configured=True, katalog=True, running=False,
     """Fake Service with just what the renderers read."""
     settings = SimpleNamespace(
         email="a@b.c", password="x", workdir="/books", readerdir="", audiodir="",
-        convert="0", convertor="ebook-convert", tsk_library="vkmr",
+        convert="0", convertor="ebook-convert", remove_drm="1", tsk_library="vkmr",
         tsk_username="u" if katalog else "", tsk_password="p" if katalog else "")
     settings.configured = lambda: configured
     settings.katalog_configured = lambda: katalog
@@ -315,6 +315,10 @@ class SettingsAndLog(unittest.TestCase):
         self.assertEqual(len(links), 6)
         for anchor in links:
             self.assertIn("id='%s'" % anchor, html)
+
+    def test_settings_remove_drm_checkbox(self):
+        html = webui.render_settings(make_svc(), T)
+        self.assertIn("name='remove_drm' checked", html)
 
     def test_log_has_heading(self):
         html = webui.render_log(make_svc(), T)

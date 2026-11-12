@@ -33,6 +33,7 @@ class Neknihy():
         self._readerdir.set(self.app.settings.readerdir)
         self._convert.set(self.app.settings.convert)
         self._convertor.set(self.app.settings.convertor)
+        self._remove_drm.set(self.app.settings.remove_drm)
         self.updateBookList()
         self.syncButtonMonitor()
 
@@ -222,6 +223,12 @@ class Neknihy():
         button = ttk.Button(p2, image=self._img_open_small, command=self.onSelectConvertor)
         button.grid(column=2, row=5, padx=5, pady=0)
 
+        self._remove_drm = tk.StringVar()
+        checkbox = ttk.Checkbutton(p2,
+                                   text='Po stažení odstranit z EPUB stránku se sociálním DRM',
+                                   variable=self._remove_drm)
+        checkbox.grid(column=1, row=6, columnspan=2, sticky=tk.EW, padx=5, pady=0)
+
     def onSelectFolder(self):
         dir = self._workdir.get()
         name = tk.filedialog.askdirectory(
@@ -409,7 +416,8 @@ class Neknihy():
             self._workdir.get(),
             self._readerdir.get(),
             self._convert.get(),
-            self._convertor.get()
+            self._convertor.get(),
+            remove_drm=self._remove_drm.get()
         )
 
 
