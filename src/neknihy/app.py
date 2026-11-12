@@ -129,7 +129,8 @@ class App():
             match = self._matchCatalogue(book, res.get("results", []))
             if audio and "web_id" not in info and webId(book) is None:
                 info["web_id"] = match["palm_id"] if match else None
-            info["authors"] = [catalogueName(a) for a in match.get("authors", [])]                 if match else []
+            info["authors"] = ([catalogueName(a) for a in match.get("authors", [])]
+                               if match else [])
 
     def _matchCatalogue(self, book, results):
         audio = isAudiobook(book)
