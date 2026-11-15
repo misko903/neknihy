@@ -118,13 +118,17 @@ podobe, rovnako ako pri desktopovej verzii). Webové rozhranie chráňte heslom
 | `NEKNIHY_AUTO_RETURN` | `1` | mazať súbory prepadnutých výpožičiek |
 | `NEKNIHY_INGEST` | `0` | `1` = priečinok na synchronizáciu je ingest priečinok Calibre-Web Automated / NextGen; každá kniha sa doň skopíruje len raz |
 | `NEKNIHY_CONVERT` | `0` | prevod na .mobi (vyžaduje Calibre, v obraze nie je) |
+| `NEKNIHY_CONVERTOR` | `ebook-convert` | cesta k programu `ebook-convert` |
+| `NEKNIHY_REMOVE_DRM` | `1` | odstrániť z EPUB stranu so sociálnym DRM (meno a číslo transakcie) |
+| `NEKNIHY_WAIT_STEP` | `20` | po vypožičaní z katalógu: pauza (s) medzi kontrolami, či sa kniha objavila v Palmknihách |
+| `NEKNIHY_WAIT_MAX` | `1800` | po vypožičaní z katalógu: ako dlho (s) čakať na novú výpožičku |
 | `NEKNIHY_DEBUG` | `0` | výpis HTTP komunikácie |
 | `NEKNIHY_TSK_USERNAME` | – | počiatočné prihlásenie do katalógu knižnice (katalog.tsk.sk) |
 | `NEKNIHY_TSK_PASSWORD` | – | počiatočné heslo do katalógu knižnice |
 | `NEKNIHY_TSK_LIBRARY` | `vkmr` | kód knižnice z adresy katalógu (`katalog.tsk.sk/library/<kód>/`), alebo `mkb` pre Mestskú knižnicu v Bratislave |
 
-Hodnoty `NEKNIHY_EMAIL` … `NEKNIHY_AUTO_RETURN` a `NEKNIHY_TSK_*` slúžia len
-ako počiatočné, ďalej platí to, čo uložíte vo webovom rozhraní.
+Hodnoty `NEKNIHY_EMAIL` … `NEKNIHY_REMOVE_DRM` (okrem `NEKNIHY_WAIT_*`)
+a `NEKNIHY_TSK_*` slúžia len ako počiatočné, ďalej platí to, čo uložíte vo webovom rozhraní.
 
 ### Požičiavanie z katalógu knižnice (katalog.tsk.sk)
 
