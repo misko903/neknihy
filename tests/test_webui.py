@@ -320,6 +320,21 @@ class SettingsAndLog(unittest.TestCase):
         html = webui.render_settings(make_svc(), T)
         self.assertIn("name='remove_drm' checked", html)
 
+    def test_settings_no_login_checkbox(self):
+        svc = make_svc()
+        self.assertIn("name='no_login'>", webui.render_settings(svc, T))
+        svc.web["no_login"] = True
+        self.assertIn("name='no_login' checked", webui.render_settings(svc, T))
+
+    def test_login_page_password_only(self):
+        html = webui.render_login(T)
+        self.assertIn("type='password' name='password'", html)
+        self.assertIn("name='no_login'", html)
+        self.assertNotIn("name='username'", html)
+        self.assertNotIn("login.error", html)
+        self.assertNotIn("st-expired", html)
+        self.assertIn("st-expired", webui.render_login(T, error=True))
+
     def test_log_has_heading(self):
         html = webui.render_log(make_svc(), T)
         self.assertIn("<h1>%s</h1>" % T("log.title"), html)

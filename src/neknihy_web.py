@@ -2,8 +2,10 @@
 """Neknihy NextGen web interface + scheduler (no extra dependencies).
 
     NEKNIHY_WEB_PORT      port to listen on (default 8478)
-    NEKNIHY_WEB_PASSWORD  optional password for the web UI (HTTP basic auth,
-                          any user name)
+    NEKNIHY_WEB_PASSWORD  optional password for the web UI (sign-in page with
+                          only a password; HTTP basic auth with any user
+                          name also works). "Open without login" in Settings
+                          or on the sign-in page turns the password off.
     NEKNIHY_CONFIG_DIR    folder for settings (default /config)
     NEKNIHY_LANG          default UI language (cs, sk, en, de); otherwise
                           taken from the browser, fallback cs. Each viewer
@@ -46,7 +48,8 @@ from neknihy.katalog import parse_work_id
 from neknihy.rating import MAX_IDS, Ratings
 from neknihy_cli import env, run_once, sync
 from neknihy.webui import (AUDIOBOOKSHELF_DIRS, STATIC, STATIC_DIR, WAIT_STEP, esc, page,
-                           render_index, render_log, render_settings, search_page)
+                           render_index, render_log, render_login, render_settings,
+                           search_page)
 
 log = logging.getLogger("neknihy")
 
@@ -58,6 +61,8 @@ WEB_PASSWORD = env("NEKNIHY_WEB_PASSWORD")
 DEFAULT_LANG = i18n.normalize(env("NEKNIHY_LANG"))
 FALLBACK_LANG = "cs"  # the app's original language
 LANG_COOKIE = "neknihy_lang=%s; Path=/; Max-Age=31536000; SameSite=Lax"
+SESSION_COOKIE = "neknihy_session"
+SESSION_COOKIE_FMT = "%s=%s; Path=/; Max-Age=2592000; HttpOnly; SameSite=Lax"
 WAIT_MAX = int(env("NEKNIHY_WAIT_MAX", "1800"))  # s to wait for a new loan
 
 STATIC_TYPES = {".png": "image/png", ".css": "text/css; charset=utf-8",
@@ -185,6 +190,7 @@ class Service:
             self.web["interval"] = interval
             self.web["auto_return"] = bool(form.get("auto_return"))
             self.web["ingest"] = bool(form.get("ingest"))
+            self.web["no_login"] = bool(form.get("no_login"))
             self._save_web()
             self._ensure_dirs()
         log.info("Settings saved")
@@ -383,9 +389,25 @@ def make_handler(svc):
         def log_message(self, fmt, *args):
             pass
 
+        def _session_cookie(self):
+            """Value of the sign-in cookie; it changes with the password."""
+            return hmac.new(WEB_PASSWORD.encode(), b"neknihy-session", "sha256").hexdigest()
+
         def _authorized(self):
-            if not WEB_PASSWORD:
+            """True when the request may use the UI: no password, the "open
+            without login" option, the sign-in cookie, or HTTP basic auth
+            (any user name; for scripts). Otherwise the sign-in page is sent."""
+            if not WEB_PASSWORD or svc.web.get("no_login"):
                 return True
+            raw = self.headers.get("Cookie")
+            if raw:
+                try:
+                    c = SimpleCookie(raw)
+                    if SESSION_COOKIE in c and hmac.compare_digest(
+                            c[SESSION_COOKIE].value, self._session_cookie()):
+                        return True
+                except Exception:
+                    pass
             h = self.headers.get("Authorization", "")
             if h.startswith("Basic "):
                 try:
@@ -394,10 +416,21 @@ def make_handler(svc):
                         return True
                 except Exception:
                     pass
-            self.send_response(401)
-            self.send_header("WWW-Authenticate", 'Basic realm="Neknihy NextGen"')
-            self.end_headers()
+            self._send(render_login(self._translator()), 401)
             return False
+
+        def _login(self, form, t):
+            """POST /login: password only; optionally switch to opening the UI
+            without signing in."""
+            if not WEB_PASSWORD or hmac.compare_digest(form.get("password", ""), WEB_PASSWORD):
+                if form.get("no_login") and WEB_PASSWORD:
+                    svc.web["no_login"] = True  # no lock: a sync may hold it for long
+                    svc._save_web()
+                    log.info("Web UI opens without login")
+                self._redirect("/", SESSION_COOKIE_FMT % (SESSION_COOKIE, self._session_cookie())
+                               if WEB_PASSWORD else None)
+            else:
+                self._send(render_login(t, error=True), 401)
 
         def _same_origin(self):
             origin = self.headers.get("Origin") or self.headers.get("Referer")
@@ -510,7 +543,8 @@ def make_handler(svc):
                 self._error(t, 404, "err.not_found")
 
         def do_POST(self):
-            if not self._authorized():
+            path = urlparse(self.path).path
+            if path != "/login" and not self._authorized():
                 return
             t = self._translator()
             if not self._same_origin():
@@ -518,8 +552,9 @@ def make_handler(svc):
                 return
             length = min(int(self.headers.get("Content-Length", 0) or 0), 65536)
             form = {k: v[0] for k, v in parse_qs(self.rfile.read(length).decode()).items()}
-            path = urlparse(self.path).path
-            if path == "/settings":
+            if path == "/login":
+                self._login(form, t)
+            elif path == "/settings":
                 svc.save_settings(form)
                 raw = form.get("lang", "")
                 lang = "auto" if raw == "auto" else i18n.normalize(raw)

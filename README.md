@@ -106,7 +106,7 @@ podobe, rovnako ako pri desktopovej verzii). Webové rozhranie chráňte heslom
 | Premenná | Predvolená | Popis |
 |---|---|---|
 | `NEKNIHY_WEB_PORT` | `8478` | port webového rozhrania |
-| `NEKNIHY_WEB_PASSWORD` | – | heslo do webového rozhrania (ľubovoľné meno) |
+| `NEKNIHY_WEB_PASSWORD` | – | heslo do webového rozhrania (prihlasovacie okno pýta iba heslo, bez mena; voľba „Otvoriť bez prihlásenia“ v Nastaveniach alebo v prihlasovacom okne heslo vypne) |
 | `NEKNIHY_LANG` | – | predvolený jazyk webu (`cs`, `sk`, `en`, `de`); inak podľa prehliadača, záložne čeština. Každý prehliadač si jazyk môže zmeniť v Nastaveniach (vrátane voľby „Automaticky (podľa prehliadača)“) |
 | `NEKNIHY_CONFIG_DIR` | `/config` | priečinok pre nastavenia |
 | `NEKNIHY_EMAIL` | – | počiatočný e-mail Palmknihy |

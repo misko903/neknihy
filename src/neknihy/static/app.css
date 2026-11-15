@@ -75,6 +75,8 @@ label { display: block; margin: 12px 0 4px; font-size: 13px; color: var(--mut); 
   background: var(--card); border: 1px solid var(--line); border-radius: 10px;
   padding: 16px 18px; margin-bottom: 16px;
 }
+.login { max-width: 360px; margin: 12vh auto 0; }
+.login h1 { margin-top: 0; }
 pre { white-space: pre-wrap; font-size: 12px; margin: 0; }
 .empty { text-align: center; padding: 48px 0; color: var(--mut); }
 .empty .ic { width: 40px; height: 40px; display: block; margin: 0 auto 8px; }

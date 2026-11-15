@@ -701,6 +701,23 @@ def library_select(choice):
         for code, name in opts)
 
 
+def render_login(t, error=False):
+    """Sign-in page: only a password (no user name) and the option to open the
+    interface without signing in from now on."""
+    body = ("<div class='card login'><h1>%s</h1>%s"
+            "<form method='post' action='/login'>"
+            "<label for='pw'>%s</label>"
+            "<input type='password' name='password' id='pw' autofocus required "
+            "autocomplete='current-password'>"
+            "<label class='chk'><input type='checkbox' name='no_login'>%s</label>"
+            "<p><button class='primary'>%s</button></p></form></div>" % (
+                esc(t("login.title")),
+                "<p class='st st-expired'>%s%s</p>" % (icon("warn"), esc(t("login.error")))
+                if error else "",
+                esc(t("login.password")), esc(t("login.no_login")), esc(t("login.submit"))))
+    return page(t, "%s – Neknihy NextGen" % t("login.title"), body)
+
+
 def render_settings(svc, t, lang_choice="auto"):
     s = svc.app.settings
 
@@ -727,7 +744,9 @@ def render_settings(svc, t, lang_choice="auto"):
         return ("<label class='chk'><input type='checkbox' name='%s'%s>%s</label>"
                 % (name, " checked" if checked else "", esc(t(key))))
 
-    general = "<label>%s%s</label>" % (esc(t("nav.language")), language_select(t, lang_choice))
+    general = ("<label>%s%s</label>" % (esc(t("nav.language")), language_select(t, lang_choice))
+               + check("no_login", svc.web.get("no_login"), "set.no_login")
+               + "<small class='hint'>%s</small>" % esc(t("set.no_login_hint")))
     account = (field("set.email", text("email", s.email, "email", " required"))
                + field("set.password", password("password", s.password)))
     folders = (field("set.workdir", text("workdir", s.workdir))
