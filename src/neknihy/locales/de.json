@@ -62,6 +62,7 @@
   "search.loaned": "ausgeliehen",
   "search.error": "Katalogsuche fehlgeschlagen: {error}",
   "log.title": "Protokoll",
+  "about.source": "Quellcode auf GitHub",
   "set.lang_auto": "Automatisch (Browsersprache)",
   "set.remove_drm": "Seite mit Social DRM nach dem Download aus EPUBs entfernen",
   "set.ingest": "Sync-Ordner ist ein Calibre-Web-Ingest-Ordner (jedes Buch nur einmal kopieren)",

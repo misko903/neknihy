@@ -71,6 +71,10 @@ _ICON_PATHS = {
             "1 0 0 1-1-1V7a1 1 0 0 1 1-1h5'/>",
     "info": "<circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><path d='M12 8h0'/>",
     "warn": "<path d='M12 3 2 20h20z'/><path d='M12 10v4'/><path d='M12 17h0'/>",
+    "github": "<path d='M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5"
+              ".28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 "
+              "2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 "
+              "1.23-.15 1.85v4'/><path d='M9 18c-4.51 2-5-2-7-2'/>",
     "log": "<path d='M4 6h16'/><path d='M4 12h16'/><path d='M4 18h10'/>",
     "v-compact": "<path d='M8 6h13'/><path d='M8 12h13'/><path d='M8 18h13'/>"
                  "<path d='M3 6h0'/><path d='M3 12h0'/><path d='M3 18h0'/>",
@@ -91,6 +95,8 @@ def icon(name, cls="ic"):
             "stroke-width='2' stroke-linecap='round' stroke-linejoin='round' "
             "aria-hidden='true'>%s</svg>" % (cls, _ICON_PATHS.get(name, "")))
 
+
+REPO_URL = "https://github.com/misko903/neknihy"
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(i18n.__file__)), "static")
 STATIC = {"/favicon.ico": "icon-32.png", "/favicon.png": "icon-32.png",
@@ -273,9 +279,12 @@ def sidebar(svc, t, path):
     log_cur = " aria-current='page'" if path == "/log" else ""
     return ("<aside class='side'><a href='/' class='brand'><img src='/icon.png?v=%s' alt=''>"
             "<span>Neknihy</span></a><nav>%s</nav>%s"
-            "<div class='foot'><a href='/log'%s>%s<span>%s</span></a>%s</div></aside>" % (
+            "<div class='foot'><a href='/log'%s>%s<span>%s</span></a><div class='foot-r'>"
+            "<a href='%s' class='gh' target='_blank' rel='noopener' title='%s' aria-label='%s'>"
+            "%s</a>%s</div></div></aside>" % (
                 STATIC_VER, nav, sync_block(svc, t), log_cur, icon("log"),
-                esc(t("log.title")), theme))
+                esc(t("log.title")), REPO_URL, esc(t("about.source")), esc(t("about.source")),
+                icon("github"), theme))
 
 
 def page(t, title, body, path="/", refresh=None, svc=None, detail=""):
@@ -750,6 +759,8 @@ def render_settings(svc, t, lang_choice="auto"):
     toc = "".join("<a href='#set-%s'>%s</a>" % (a, esc(t(title))) for a, title in sections)
     body = ("<div class='head'><h1>%s</h1></div><nav class='toc'>%s</nav>"
             "<form method='post' action='/settings'>%s"
-            "<p><button class='primary'>%s%s</button></p></form>") % (
-        esc(t("title.settings")), toc, cards, icon("ok"), esc(t("set.save")))
+            "<p><button class='primary'>%s%s</button></p></form>"
+            "<p class='mut about'><a href='%s' target='_blank' rel='noopener'>%s%s</a></p>") % (
+        esc(t("title.settings")), toc, cards, icon("ok"), esc(t("set.save")),
+        REPO_URL, icon("github"), esc(t("about.source")))
     return page(t, "%s – Neknihy NextGen" % t("title.settings"), body, "/settings", svc=svc)

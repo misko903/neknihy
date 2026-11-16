@@ -129,6 +129,11 @@ main { padding: 24px 32px 48px; min-width: 0; }
 .sync button { width: 100%; justify-content: center; }
 .foot { display: flex; align-items: center; justify-content: space-between; padding-top: 8px; }
 .foot a { font-size: 13px; padding: 5px 8px; }
+.foot-r { display: flex; align-items: center; gap: 2px; }
+.foot a.gh { padding: 6px; }
+.about { margin-top: 24px; font-size: 13px; }
+.about a { display: inline-flex; align-items: center; gap: 6px; color: var(--mut); text-decoration: none; }
+.about a:hover { color: var(--fg); }
 .theme { padding: 6px; border: 0; background: none; color: var(--mut); }
 .theme:hover { color: var(--fg); }
 .theme .ic { display: none; }
