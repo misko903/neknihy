@@ -163,6 +163,12 @@ zobrazia po anglicky. Kontrola prekladov: `python3 -m unittest discover tests`.
 Jednorazovo bez webu (napr. z cronu):
 `NEKNIHY_EMAIL=... NEKNIHY_PASSWORD=... python3 src/neknihy_cli.py --once --workdir ~/knihy`
 
+## Plugin pre KOReader
+
+Priečinok [`koreader/`](koreader/knihovnicek.koplugin/README.md) obsahuje plugin Knihovníček (vychádza aj samostatne v repozitári [knihovnicek.koplugin](https://github.com/misko903/knihovnicek.koplugin)), samostatný plugin pre
+KOReader: zoznam výpožičiek, sťahovanie, mazanie prepadnutých kníh a
+požičiavanie z katalógu priamo na čítačke, bez servera a bez počítača.
+
 ## Snímka obrazovky
 
 Vľavo je navigácia (Výpožičky, Hľadať, Nastavenia), stav poslednej
