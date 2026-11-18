@@ -66,7 +66,7 @@ class App():
         if not s.katalog_configured():
             raise RuntimeError("Library catalogue login is not set")
         if self.katalog is None:
-            self.katalog = KatalogTSK(s.tsk_username, s.tsk_password, s.tsk_library)
+            self.katalog = KatalogTSK(s.katalog_user(),s.tsk_password, s.tsk_library)
         try:
             return self.katalog.borrow(work_id)
         except Exception:

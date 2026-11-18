@@ -88,7 +88,7 @@
   "set.readerdir_hint": "Čítačka alebo ingest Calibre-Web. Prázdne = vypnuté.",
   "set.audiodir_hint": "Napr. knižnica Audiobookshelf, ukladá sa ako Autor/Názov. Prázdne = priečinok pre knihy.",
   "set.interval_hint": "0 = vypnuté",
-  "set.tsk_username_hint": "E-mail alebo číslo čitateľského preukazu v zvolenej knižnici.",
+  "set.tsk_username_hint": "E-mail alebo číslo čitateľského preukazu v zvolenej knižnici. Ak ostane prázdne, použije sa e-mail z Palmknihy.",
   "set.sec_general": "Všeobecné",
   "set.sec_account": "Účet Palmknihy",
   "set.sec_folders": "Priečinky",

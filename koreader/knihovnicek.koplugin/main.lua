@@ -183,9 +183,14 @@ function Knihovnicek:requireLogin()
     return true
 end
 
+-- The library login name is the same e-mail as for Palmknihy.
+function Knihovnicek:catUser()
+    return self:get("email", "")
+end
+
 function Knihovnicek:katalogClient()
     local lib = self:get("library", "vkmr")
-    local user, pass = self:get("cat_user", ""), self:get("cat_pass", "")
+    local user, pass = self:catUser(), self:get("cat_pass", "")
     local k = self.katalog
     if not k or k.library ~= lib or k.username ~= user or k.password ~= pass then
         k = Katalog.new(lib, user, pass)
@@ -533,7 +538,7 @@ function Knihovnicek:confirmBorrow(result)
         self:showMessage(L("cannot_borrow"))
         return
     end
-    if self:get("cat_user", "") == "" or self:get("cat_pass", "") == "" then
+    if self:catUser() == "" or self:get("cat_pass", "") == "" then
         self:showMessage(L("no_cat_login"))
         return
     end
@@ -644,7 +649,6 @@ function Knihovnicek:settingsItems()
             end,
             sub_item_table = self:libraryItems(),
         },
-        self:textSetting("cat_user", L("cat_user"), false),
         self:textSetting("cat_pass", L("cat_pass"), true),
     }
 end

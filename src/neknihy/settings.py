@@ -196,5 +196,9 @@ class Settings():
             self.workdir == ""
         )
 
+    def katalog_user(self):
+        """Library login name; falls back to the Palmknihy e-mail when left empty."""
+        return self.tsk_username or self.email
+
     def katalog_configured(self):
-        return bool(self.tsk_username and self.tsk_password)
+        return bool(self.katalog_user() and self.tsk_password)

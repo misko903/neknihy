@@ -88,7 +88,7 @@
   "set.readerdir_hint": "E-Reader oder Calibre-Web-Ingest. Leer = aus.",
   "set.audiodir_hint": "Z. B. eine Audiobookshelf-Bibliothek, gespeichert als Autor/Titel. Leer = Bücherordner.",
   "set.interval_hint": "0 = aus",
-  "set.tsk_username_hint": "E-Mail oder Lesernummer in der gewählten Bibliothek.",
+  "set.tsk_username_hint": "E-Mail oder Lesernummer in der gewählten Bibliothek. Bleibt das Feld leer, wird die Palmknihy-E-Mail verwendet.",
   "set.sec_general": "Allgemein",
   "set.sec_account": "Palmknihy-Konto",
   "set.sec_folders": "Ordner",
