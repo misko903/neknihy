@@ -24,6 +24,7 @@
   "delete.confirm": "Smazat „{title}“? Soubor se odstraní z disku.",
   "set.email": "E-mail",
   "set.password": "Heslo",
+  "set.tsk_password": "Heslo do knihovny",
   "set.password_keep": "ponechte prázdné pro zachování",
   "set.workdir": "Složka pro knihy (v kontejneru)",
   "set.readerdir": "Složka pro synchronizaci",

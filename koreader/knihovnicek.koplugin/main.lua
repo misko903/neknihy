@@ -618,6 +618,19 @@ function Knihovnicek:settingsItems()
         self:textSetting("password", L("password"), true),
         {
             text_func = function()
+                local code = self:get("library", "vkmr")
+                for _i, lib in ipairs(Katalog.LIBRARIES) do
+                    if lib[1] == code then
+                        return L("library") .. ": " .. lib[2]
+                    end
+                end
+                return L("library") .. ": " .. code
+            end,
+            sub_item_table = self:libraryItems(),
+        },
+        self:textSetting("cat_pass", L("cat_pass"), true),
+        {
+            text_func = function()
                 return L("folder") .. ": " .. self:downloadDir()
             end,
             keep_menu_open = true,
@@ -637,19 +650,6 @@ function Knihovnicek:settingsItems()
                 })
             end,
         },
-        {
-            text_func = function()
-                local code = self:get("library", "vkmr")
-                for _i, lib in ipairs(Katalog.LIBRARIES) do
-                    if lib[1] == code then
-                        return L("library") .. ": " .. lib[2]
-                    end
-                end
-                return L("library") .. ": " .. code
-            end,
-            sub_item_table = self:libraryItems(),
-        },
-        self:textSetting("cat_pass", L("cat_pass"), true),
     }
 end
 

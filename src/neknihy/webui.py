@@ -767,7 +767,7 @@ def render_settings(svc, t, lang_choice="auto"):
            + field("set.tsk_username",
                    text("tsk_username", s.tsk_username, extra=" autocomplete='off'"),
                    "set.tsk_username_hint")
-           + field("set.password", password("tsk_password", s.tsk_password)))
+           + field("set.tsk_password", password("tsk_password", s.tsk_password)))
     cards = "".join((
         section("general", "settings", "set.sec_general", general),
         section("account", "download", "set.sec_account", account),

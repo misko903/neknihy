@@ -24,6 +24,7 @@
   "delete.confirm": "„{title}“ löschen? Die Datei wird von der Festplatte entfernt.",
   "set.email": "E-Mail",
   "set.password": "Passwort",
+  "set.tsk_password": "Bibliothekspasswort",
   "set.password_keep": "leer lassen, um es beizubehalten",
   "set.workdir": "Ordner für Bücher (im Container)",
   "set.readerdir": "Ordner für die Synchronisation",

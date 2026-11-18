@@ -24,6 +24,7 @@
   "delete.confirm": "Vymazať „{title}“? Súbor sa odstráni z disku.",
   "set.email": "E-mail",
   "set.password": "Heslo",
+  "set.tsk_password": "Heslo do knižnice",
   "set.password_keep": "nechajte prázdne, ak ho nemeníte",
   "set.workdir": "Priečinok pre knihy (v kontajneri)",
   "set.readerdir": "Priečinok pre synchronizáciu",
